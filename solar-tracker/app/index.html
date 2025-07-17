@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Parabolic Dish Control</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f5f5f5;
+            padding: 20px;
+            color: #333;
+            margin: 0;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .container {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .dish-container {
+            flex: 2;
+            min-width: 600px;
+            position: relative;
+            height: 600px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            perspective: 1200px;
+            background: linear-gradient(to bottom, #f9f9f9, #e9e9e9);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        .dish-wrapper {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .dish {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            transform-style: preserve-3d;
+            transition: transform 1s ease;
+    	    backface-visibility: visible;
+
+        }
+        
+        .support-structure {
+            position: absolute;
+            width: 80px;
+            height: 200px;
+            background-color: #3a3a3a;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 5px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+        }
+        
+        .support-pedestal {
+            position: absolute;
+            width: 120px;
+            height: 20px;
+            background-color: #2a2a2a;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 3px;
+        }
+        
+        .dish-arm {
+            position: absolute;
+            width: 12px;
+            height: 180px;
+            background: linear-gradient(to right, #555, #777);
+            bottom: 200px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1;
+        }
+        
+        .reflector {
+            position: absolute;
+            width: 300px;
+            height: 150px;
+            background: radial-gradient(ellipse at center, #f5f5f5 0%, #d0d0d0 70%, #a0a0a0 100%);
+            border-radius: 150px 150px 0 0;
+            bottom: 380px;
+            transform-origin: center bottom;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            border: 1px solid #aaa;
+    	    backface-visibility: visible;
+        }
+        
+        .receiver {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background-color: #d35400;
+            border-radius: 50%;
+            bottom: 330px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            z-index: 2;
+        }
+        
+        .receiver::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: #e67e22;
+            border-radius: 50%;
+            top: 5px;
+            left: 5px;
+        }
+        
+        /* Rest of the CSS remains the same as previous version */
+        .controls {
+            flex: 1;
+            min-width: 300px;
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-width: 400px;
+        }
+        
+        .position-display {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #ddd;
+            border-radius: 5px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3498db;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .value-display {
+            text-align: center;
+            font-size: 1.3em;
+            margin-top: 8px;
+            color: #2980b9;
+            font-weight: bold;
+        }
+        
+        .file-path-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .update-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+        
+        .update-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .component-label {
+            position: absolute;
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .reflector:hover + .reflector-label,
+        .receiver:hover + .receiver-label,
+        .support-structure:hover + .structure-label {
+            opacity: 1;
+        }
+        
+        .reflector-label {
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .receiver-label {
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .structure-label {
+            bottom: 220px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+<body>
+    <h1>Solar Parabolic Dish Control System</h1>
+    
+    <div class="container">
+        <div class="dish-container">
+            <div class="dish-wrapper">
+                <div class="dish" id="dish">
+                    <div class="support-pedestal"></div>
+                    <div class="support-structure"></div>
+                    <div class="structure-label component-label">Supporting Structure</div>
+                    <div class="dish-arm"></div>
+                    <div class="reflector"></div>
+                    <div class="reflector-label component-label">Solar Reflector Dish</div>
+                    <div class="receiver"></div>
+                    <div class="receiver-label component-label">Receiver</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="file-path">Position Data File Path:</label>
+                <input type="text" id="file-path" class="file-path-input" placeholder="Enter full path to position data file" value="./dish_position.txt">
+            </div>
+            
+            <div class="control-group">
+                <label for="azimuth">Azimuth Rotation (0°-360°):</label>
+                <input type="range" id="azimuth" min="0" max="360" value="0" step="1">
+                <div class="value-display" id="azimuth-value">0°</div>
+            </div>
+            
+            <div class="control-group">
+                <label for="elevation">Elevation Angle (0°-90°):</label>
+                <input type="range" id="elevation" min="0" max="90" value="0" step="1">
+                <div class="value-display" id="elevation-value">0°</div>
+            </div>
+            
+            <div class="position-display">
+                <h3>Current Position</h3>
+                <p>Azimuth: <span id="current-azimuth">0</span>°</p>
+                <p>Elevation: <span id="current-elevation">0</span>°</p>
+                <p>Last Updated: <span id="last-updated">Never</span></p>
+            </div>
+            
+            <button class="update-btn" id="update-btn">Update Position from File</button>
+        </div>
+    </div>
+    
+    <script>
+        // DOM elements
+        const dish = document.getElementById('dish');
+        const azimuthInput = document.getElementById('azimuth');
+        const elevationInput = document.getElementById('elevation');
+        const azimuthValue = document.getElementById('azimuth-value');
+        const elevationValue = document.getElementById('elevation-value');
+        const currentAzimuth = document.getElementById('current-azimuth');
+        const currentElevation = document.getElementById('current-elevation');
+        const lastUpdated = document.getElementById('last-updated');
+        const updateBtn = document.getElementById('update-btn');
+        const filePathInput = document.getElementById('file-path');
+        
+        // Update dish position
+        function updateDishPosition(azimuth, elevation) {
+
+  		  //Convert to numbers and validate
+    		azimuth = Number(azimuth) || 0;
+   		  elevation = Math.max(0, Math.min(90, Number(elevation) || 0));
+    
+    		// Apply transformation with forced 3D rendering
+    		dish.style.transform = `
+        	translateZ(0)
+        	rotateY(${azimuth}deg)
+        	rotateX(${-elevation}deg)
+   		 `;
+    
+    		// Update UI
+    		azimuthInput.value = azimuth;
+    		elevationInput.value = elevation;
+    		currentAzimuth.textContent = azimuth;
+    		currentElevation.textContent = elevation;
+    
+            	lastUpdated.textContent = new Date().toLocaleTimeString();
+		console.log(`Applied transform: rotateY(${azimuth}deg) rotateX(${-elevation}deg)`); 
+        }
+        
+        // Event listeners for sliders
+        azimuthInput.addEventListener('input', () => {
+            updateDishPosition(azimuthInput.value, elevationInput.value);
+        });
+        
+        elevationInput.addEventListener('input', () => {
+            updateDishPosition(azimuthInput.value, elevationInput.value);
+        });
+        
+        // Function to read from text file
+	async function readPositionFromFile() {
+	    const filePath = filePathInput.value.trim();
+	    console.log("Trying to read:", filePath); // Debug
+	    
+	    try {
+		const response = await fetch(filePath);
+		console.log("Response status:", response.status); // Debug
+		const text = await response.text();
+		console.log("File content:", text); // Debug
+		
+		// Parse the text file (expected format: "azimuth,elevation")
+		const [azimuth, elevation] = text.trim().split(',').map(Number);
+		        
+	       	if (!isNaN(azimuth) && !isNaN(elevation)) {
+		      	 // Update sliders and dish position
+			 azimuthInput.value = azimuth;
+			 elevationInput.value = elevation;
+			 updateDishPosition(azimuth, elevation);
+			}
+	    } catch (error) {
+		console.error("Full error:", error); // Detailed debug
+		// Optional: Show error to user
+		lastUpdated.textContent = `${error.message}`;
+	    }
+	}
+        // Function to request position from a server
+        async function getPositionFromServer() {
+        	console.log("Requesting for position");
+    		try {
+			const response = await fetch('http://localhost:1900');
+			const result = await response.text();
+			console.log("Script output:", result);
+			
+			// Parse the text file (expected format: "azimuth,elevation")
+			const [azimuth, elevation] = result.trim().split(',').map(Number);
+			
+			if (!isNaN(azimuth) && !isNaN(elevation)) {
+			      	 // Update sliders and dish position
+				 azimuthInput.value = azimuth;
+				 elevationInput.value = elevation;
+				 updateDishPosition(azimuth, elevation);
+			}
+	    	} catch (error) {
+			console.error("Error running script:", error);
+			lastUpdated.textContent = `${error.message}`;
+	    }
+        }
+        // Button click event
+        updateBtn.addEventListener('click', getPositionFromServer); // readPositionFromFile);
+        
+        // Initialize
+        updateDishPosition(0, 0);
+
+        // Auto-refresh every 5 seconds
+        const refreshInterval = setInterval(() => {
+            console.log("Auto-refreshing position...");
+            getPositionFromServer();
+        }, 10000); // 10000 milliseconds = 10 seconds
+        
+        // Optional: Clean up interval when page unloads
+        window.addEventListener('beforeunload', () => {
+            clearInterval(refreshInterval);
+        });
+
+    </script>
+</body>
+</html>
