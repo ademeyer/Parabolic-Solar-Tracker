@@ -1,8 +1,8 @@
-## Parabolic-Solar-Tracker
+# Parabolic-Solar-Tracker
 
 The Parabolic Solar Tracker is an advanced solar tracking system that dynamically adjusts the position of a parabolic solar collector to maximize energy absorption by continuously facing the sun. Using a precise sun-position algorithm, the tracker calculates the sun's azimuth and elevation angles for any given geographic location and time, ensuring optimal alignment throughout the day.
 
-# Key Features:
+## Key Features:
 
 Sun-Position Algorithm: Computes real-time solar coordinates based on latitude, longitude, date, and time.
 
@@ -14,7 +14,7 @@ Geolocation Adaptability: Works for any geographic location with configurable in
 
 Open-Source & Scalable: Designed for integration with solar panels, concentrators, or thermal systems.
 
-# Potential Applications:
+## Potential Applications:
 
 Solar power plants
 
