@@ -43,9 +43,9 @@ struct Date
 {
   int year;
   int month;
-  int date;
+  int day;
   Date(const int &y, const int &mn, const int &d)
-      : year(y), month(mn), date(d) {}
+      : year(y), month(mn), day(d) {}
 };
 
 struct Time
@@ -70,14 +70,14 @@ struct DateTimeData
   double GetDelta_UT1() const
   {
     /* Calculate the Julian Date */
-    auto JD = [&] -> double
+    auto JD = [&]() -> double
     {
       double A = dt.year / 100.0;
       double B = A / 4.0;
       double C = 2 - A + B;
       double E = 365.25 * (dt.year + 4716);
       double F = 30.6001 * (dt.month + 1);
-      return C + dt.date + E + F - 1524.5;
+      return C + dt.day + E + F - 1524.5;
     };
     /* Calculate the Modified Julian Date */
     double MJD = JD() - 2400000.5;
@@ -89,14 +89,14 @@ struct DateTimeData
                           (0.006 * sin(4 * PI * T)) +
                           (0.007 * cos(4 * PI * T));
 
-    double A = 2 * PI * (MJD - 60866) / 365.25;
-    double C = 2 * PI * (MJD - 60866) / 435.0;
+    // double A = 2 * PI * (MJD - 60866) / 365.25;
+    // double C = 2 * PI * (MJD - 60866) / 435.0;
 
-    double x = 0.1332 + 0.0566 * cos(A) + 0.1483 * sin(A) -
-               0.0151 * cos(C) - 0.0861 * sin(C);
+    // double x = 0.1332 + 0.0566 * cos(A) + 0.1483 * sin(A) -
+    //            0.0151 * cos(C) - 0.0861 * sin(C);
 
-    double y = 0.3838 + (0.1403 * cos(A)) - (0.0484 * sin(A)) -
-               (0.0861 * cos(C)) + (0.0151 * sin(C));
+    // double y = 0.3838 + (0.1403 * cos(A)) - (0.0484 * sin(A)) -
+    //            (0.0861 * cos(C)) + (0.0151 * sin(C));
 
     /* return UT1_UTC */
     return (0.0590 + (0.00011 * (MJD - 60874)) - diff_UT2_UT1);
