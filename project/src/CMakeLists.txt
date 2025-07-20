@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_executable(${PROJECT_NAME} main.cpp)
 
 # set list of user static libs
-set(STATIC_LIBS WMMLib)
+set(STATIC_LIBS WMMLib SPALib)
 
 # add header libs
 target_include_directories(${PROJECT_NAME} PUBLIC "../include")
