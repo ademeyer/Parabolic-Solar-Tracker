@@ -1,22 +1,15 @@
 #pragma once
 #include "ISensor.h"
 
-struct WeatherData
-{
-  double temp;     /* in Celsius */
-  double presure;  /* in millibar */
-  double humidity; /* in % */
-  WeatherData(const double &t, const double &p, const double &h)
-      : temp(t), presure(p), humidity(h) {}
-};
-
-class IWeather : public ISensor
+class IGeoWeatherService : public ISensor<IGeoWeatherService>
 {
 public:
   virtual int Initialize() override { return 0; }
-  virtual void GetRawSensorData() override {}
-  virtual WeatherData GetWeatherData() const
+  template <typename T>
+  T GetServiceData() const
   {
-    return WeatherData(18.0, 895.0, 56.0);
+    if constexpr (!std::is_same_v<T, GeoWeatherData>)
+      static_assert(sizeof(T) == 0, "Unsupported return type for IGeoWeatherService");
+    return GeoWeatherData(18.0, 895.0, 56.0);
   }
 };

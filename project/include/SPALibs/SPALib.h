@@ -8,9 +8,9 @@
 struct SPA_Input
 {
   DateTimeData dateTime;
-  Position pos;
-  WeatherData weather;
-  SPA_Input(const DateTimeData &d, const Position &p, const WeatherData &w)
+  GeoLocationData pos;
+  GeoWeatherData weather;
+  SPA_Input(const DateTimeData &d, const GeoLocationData &p, const GeoWeatherData &w)
       : dateTime(d), pos(p), weather(w) {}
 };
 

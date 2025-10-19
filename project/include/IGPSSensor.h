@@ -1,22 +1,16 @@
 #pragma once
 
 #include "ISensor.h"
-
-struct Position
-{
-  double Latitude;
-  double Longitude;
-  double Altitude;
-  double Speed;
-  Position() : Latitude(0.0), Longitude(0.0), Altitude(0.0), Speed(0.0) {}
-  Position(const double &lat, const double &lon, const double &alt, const double &speed)
-      : Latitude(lat), Longitude(lon), Altitude(alt), Speed(speed) {}
-};
-
-class IGPSSensor : public ISensor
+class IGeoLocationService : public ISensor<IGeoLocationService>
 {
 public:
   virtual int Initialize() override { return 0; }
-  virtual void GetRawSensorData() override {}
-  virtual Position GetPositionData() const { return Position(51.047, -114.063, 1.181, 0.0); }
+  template <typename T>
+  T GetServiceData() const
+  {
+    if constexpr (!std::is_same_v<T, GeoLocationData>)
+      static_assert(sizeof(T) == 0, "Unsupported return type for IGeoLocationService");
+    return GeoLocationData(51.047, -114.063, 1.181, 0.0);
+  }
+  virtual ~IGeoLocationService() override {}
 };

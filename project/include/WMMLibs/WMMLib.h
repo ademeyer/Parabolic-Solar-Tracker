@@ -7,7 +7,7 @@
 struct InData
 {
   double decimalYear;
-  struct Position pos;
+  struct GeoLocation pos;
 };
 /*************************** END USER INPUT DATA ***********************************/
 

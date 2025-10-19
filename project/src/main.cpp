@@ -11,18 +11,23 @@ int main()
   // Calculate the magnetic north direction (θ mag)
   double theta = atan(mag.Y / mag.X);
   IDateTime dt;
-  IGPSSensor gps;
+  IGeoLocationService gps;
   InData in;
-  IWeather weather;
-  SPA_Input spa_in(dt.GetDateTimeDate(), gps.GetPositionData(), weather.GetWeatherData());
+  IGeoWeatherService weather;
+
+  SPA_Input spa_in(dt.GetDateTimeDate(),
+                   gps.GetServiceData<GeoLocationData>(),
+                   weather.GetServiceData<GeoWeatherData>());
   // Configure Input to get local north direction
   in.decimalYear = dt.GetDecimalYear();
-  in.pos = gps.GetPositionData();
+  in.pos = gps.GetServiceData<GeoLocationData>();
   // Get local magnetic north direction (D)
   auto decl = getDeclinition(&in);
   if (decl.errCode != 0)
   {
-    std::cerr << "An Error occurred: " << decl.errCode << " While trying to get local declinition" << std::endl;
+    std::cerr << "An Error occurred: "
+              << decl.errCode << " While trying to get local declinition"
+              << std::endl;
     return 1;
   }
   // https://www.suncalc.org/#/51.0108,-114.0646,18/2025.07.20/09:29/1/3
