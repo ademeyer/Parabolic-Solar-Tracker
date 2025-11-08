@@ -1,0 +1,10 @@
+[Unit]
+Description=Run DBapp every 30 minutes
+Requires=db_app.service
+
+[Timer]
+OnCalendar=*:0/30
+Unit=db_app.service
+
+[Install]
+WantedBy=timers.target

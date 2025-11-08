@@ -1,0 +1,8 @@
+[Unit]
+Description=Solar DB Service
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/laplace/DBapp/run_dbapp.sh
+User=laplace
