@@ -1,0 +1,39 @@
+*   Latitude (in degrees): [51.045]
+    Longitude (in degrees): [-114.0618]
+    D Step size (location, in degrees): [0]
+    Altitude (in km, above MSL or WGS-84): [1181.2m, 1.1812km]
+    H Step size (altitude, in km): [0]
+    Data and Time [DecimalYear = 2025.53]
+
+
+// compile for ARM-NONE
+gcc -std=c99 -Wall -g -o2 -W -Isrc src/*.c main/app.c -o build/lapp -lm
+
+arm-none-eabi-gcc -mcpu=cortex-m7 -mthumb -Os -std=c99 -Isrc -c src/*.c main/app.c -lm
+
+for src_file in src/*.c main/app.c; do
+    obj_file="m7build/$(basename "$src_file" .c).o"
+    arm-none-eabi-gcc -mcpu=cortex-m7 -mthumb -Os -std=c99 -Isrc -c "$src_file" -o "$obj_file"
+done
+
+// compile startup file
+arm-none-eabi-gcc -mcpu=cortex-m7 -mthumb -c startup_stm32f746xx.s -o m7build/startup.o
+
+// Generating .elf and .bin file
+arm-none-eabi-gcc \
+  -mcpu=cortex-m7 -mthumb \
+  -mfloat-abi=soft -mno-unaligned-access \
+  -T STM32F746NGH_FLASH.ld \
+  m7build/app.o \
+  -o m7build/firmware.elf \
+  -specs=nosys.specs \
+  -specs=nano.specs \
+  -Wl,--gc-sections \
+  -Wl,-Map=m7build/firmware.map
+  
+  // .elf to bin
+  arm-none-eabi-objcopy -O binary m7buil/firmware.elf m7buil/firmware.bin
+
+
+  // Testing on emulator
+  qemu-system-arm -machine netduinoplus2 -cpu cortex-m7 -nographic -kernel m7build/firmware.elf -semihosting -serial mon:stdio
