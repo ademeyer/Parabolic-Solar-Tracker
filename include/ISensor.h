@@ -6,6 +6,7 @@
 #include <math.h>
 #include <cstdio>
 #include <stdexcept>
+#include <array>
 #include "Point.h"
 #define PI 3.14159265
 
@@ -119,6 +120,7 @@ struct DateTime
 
     return dayOfYear;
   }
+
   const char *c_str() const
   {
     static thread_local std::string str = "";
