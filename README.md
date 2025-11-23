@@ -1,59 +1,128 @@
-# Parabolic-Solar-Tracker
+# Solar Collector Simulation
 
-The Parabolic Solar Tracker is an advanced solar tracking system that dynamically adjusts the position of a parabolic solar collector to maximize energy absorption by continuously facing the sun. Using a precise sun-position algorithm, the tracker calculates the sun's azimuth and elevation angles for any given geographic location and time, ensuring optimal alignment throughout the day.
-
-## Key Features
-
-- **Sun-Position Algorithm:** Computes real-time solar coordinates (azimuth, elevation, sunrise, sunset) based on latitude, longitude, date, and time using the Solar Position Algorithm (SPA).
-- **Automated Adjustment:** Designed to interface with servo motors or actuators to reposition the parabolic reflector for maximum solar exposure.
-- **Energy Efficiency:** Enhances solar energy capture compared to fixed-position systems.
-- **Geolocation Adaptability:** Works for any geographic location with configurable inputs.
-- **Open-Source & Scalable:** Suitable for integration with solar panels, concentrators, or thermal systems.
-
-## Codebase Overview
-
-- **project/include/SPALibs/SPALib.cpp:**  
-  Implements the core sun position calculation logic. The `getSunPosition` function takes date, time, and location input, computes the sun's position using the SPA, and returns azimuth, elevation, incidence, sunrise, and sunset times.
-- **SPA_Input / SPA_Output Structures:**  
-  Used to pass input parameters (date, time, location, weather) and receive computed sun position data.
-- **SPA Library Integration:**  
-  The code integrates with the SPA library for accurate astronomical calculations.
-- **Error Handling:**  
-  The code checks for invalid input and SPA calculation errors, returning error codes as needed.
-
-## Potential Applications
-
-- Solar power plants
-- Concentrated solar thermal systems
-- Off-grid renewable energy solutions
-
-## Building the Project
-
-1. **Dependencies:**  
-   - C++ compiler (e.g., g++)
-   - CMake or Make (depending on project setup)
-   - SPA library (included or linked as a dependency)
-
-2. **Build Instructions:**  
-   If using CMake:
-   ```sh
-   mkdir -p build
-   cd build
-   cmake ..
-   make
-   ```
-   If using Makefile:
-   ```sh
-   make
-   ```
-
-3. **Running:**  
-   Integrate the compiled library or executable with your control system or test harness.
-
-## Contributing
-
-Contributions are welcome! Please open issues or submit pull requests for improvements or bug fixes.
+This project provides a C++ library and test suite for simulating the thermal and optical performance of solar collectors, including Parabolic Dish and Flat Plate designs. It models solar energy interception, heat losses, and collector efficiency using configurable material properties.
 
 ---
 
-Built with precision and sustainability in mind, this project aims to improve solar energy harvesting efficiency through intelligent automation.
+## Features
+
+- **Collector Types:**  
+  - Parabolic Dish Collector  
+  - Flat Plate Collector
+
+- **Thermal Calculations:**  
+  - Solar energy intercepted  
+  - Conduction and convection losses  
+  - Operating and maximum temperature estimation  
+  - Optical efficiency modeling
+
+- **Material Configuration:**  
+  - Easily add or modify materials in `Configs/material.conf`  
+  - Properties include reflectance, transmittance, absorbance, thermal conductivity, and thickness
+
+- **Extensible Design:**  
+  - Abstract base classes for geometry and collectors  
+  - Modular loss models (conduction, convection)
+
+---
+
+## How It Works
+
+### Collector Models
+
+- **Parabolic Dish:**  
+  Calculates intercepted solar energy based on dish and reactor geometry, material properties, and solar input.  
+  Optical efficiency formula:
+  ```
+  η_opt = ρ * γ * τ * α * cos(θ) * IAM
+  ```
+  Where:
+  - ρ: mirror reflectance
+  - γ: intercept factor (typically 0.9–0.95)
+  - τ: transmittance of receiver cover
+  - α: absorptance of receiver
+  - θ: incidence angle
+  - IAM: incidence angle modifier
+
+- **Flat Plate:**  
+  Models direct solar absorption and heat losses through the plate, using material-specific conduction and convection equations.
+
+### Material Properties
+
+Materials are defined in `Configs/material.conf`:
+```
+# Format: name=melting_point,max_operating_temp,reflectance,transmittance,absorbance,thermal_conductivity(W/m·K),material_thickness(meter)
+Aluminum=933.0, 673.0, 0.92, 0.08, 0.00, 237.0, 0.012
+Copper=1358.0, 773.0, 0.70, 0.30, 0.00, 401.0, 0.012
+...
+```
+
+---
+
+## Example Usage
+
+```cpp
+#include "Collector.hpp"
+
+GeoWeatherData weather(25.0, 1013.25, 5.0, 50.0);
+GeoSolarRadiationData solar(1000.0, 45.0, 180.0, 45.0);
+
+ParabolicDish dish("Aluminum", "Copper", 1.5, 0.3);
+if (dish.IsInitialized()) {
+    auto props = dish.GetCollectorThermalProperties(weather, solar, 0);
+    // props contains intercepted energy, losses, efficiency, temperatures
+}
+```
+
+---
+
+## Building
+
+### Prerequisites
+
+- C++17 or newer
+- CMake 3.10+
+- Standard build tools (gcc/g++)
+
+### Build Steps
+
+```sh
+mkdir build
+cd build
+cmake ..
+make
+```
+
+---
+
+## Extending Materials
+
+To add a new material, edit `Configs/material.conf` and add a line in the format:
+```
+MaterialName=melting_point,max_operating_temp,reflectance,transmittance,absorbance,thermal_conductivity,material_thickness
+```
+
+---
+
+## Contributing
+
+- Fork the repository
+- Create a feature branch
+- Submit a pull request
+
+---
+
+## License
+
+MIT License
+
+---
+
+## References
+
+- Duffie & Beckman, *Solar Engineering of Thermal Processes*
+- ASHRAE Handbook—Fundamentals
+
+---
+
+For more details, see the code comments and the `Configs/material.conf` file.

@@ -55,8 +55,7 @@ public:
       }
     }
     file.close();
-    std::cout << "Parsed " << m_ParsedData.size() << " Addresses from config file.\n"
-              << std::endl;
+    std::cout << "Parsed " << m_ParsedData.size() << " detail(s) from config file.\n";
 
     return true;
   }
