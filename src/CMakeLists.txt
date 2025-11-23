@@ -12,3 +12,7 @@ endif()
 if(BUILD_SENSOR_APP)
   add_subdirectory(mock-sensor)
 endif()
+
+if(BUILD_PLATE_TEST)
+  add_subdirectory(plate-test)
+endif()

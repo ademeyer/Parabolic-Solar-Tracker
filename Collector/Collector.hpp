@@ -1,8 +1,16 @@
 #pragma once
 #define STEFAN_BOLTZMANN 5.670374419e-8
-#include <bits/stdc++.h>
+#include <cmath>
+#include <memory>
+#include <functional>
+#include <iostream>
+#include <stdexcept>
 #include "ISensor.h"
 #include "MaterialsProperties.hpp"
+#include "SolTraceModel.h"
+#include "SPALib.h"
+
+#define SOLAR_CONSTANT 1361 // W/m^2
 
 class Dimension
 {
@@ -22,7 +30,10 @@ public:
   ConvectiveLoss(const double &area) : m_Area(area) {}
   double GetThermalLossRate(const double &delta_temp, const double &windspeed) const
   {
-    return m_Area * delta_temp * hcW(windspeed);
+    if (windspeed < 2.0 || windspeed > 20.0)
+      throw std::domain_error("Wind speed outside valid range (2-20 m/s)");
+
+    return m_Area * (delta_temp + 273.15) * hcW(windspeed);
   }
 };
 
@@ -36,16 +47,19 @@ public:
   ConductionLoss(const double &ther, const double &thick, const double &area)
       : m_Thermal_conductivity(ther), m_Thickness(thick), m_Area(area) {}
   double GetThermalLossRate(const double &delta_temp) const { return static_cast<double>(
-      m_Thermal_conductivity * m_Area * delta_temp / m_Thickness); }
+      m_Thermal_conductivity * m_Area * (delta_temp + 273.15) / m_Thickness); }
 };
 
 class Parabola : public Dimension
 {
   double m_Diameter;
+  double m_Depth;
 
 public:
-  Parabola(const double &diameter) : m_Diameter(diameter) {}
+  Parabola(const double &diameter, const double &depth = 0)
+      : m_Diameter(diameter), m_Depth(depth) {}
   double GetArea() const override { return M_PI * pow((m_Diameter / 2.0), 2); }
+  double GetFocalLength() const { return m_Depth <= 0.0 ? 0.0 : static_cast<double>((pow(m_Diameter, 2.0)) / (16 * m_Depth)); }
 };
 
 class FlatSurface : public Dimension
@@ -58,9 +72,21 @@ public:
   double GetArea() const override { return m_Length * m_Width; }
 };
 
-struct ThermalProperties
-{
-};
+// struct ThermalProperties
+// {
+//   double q_intercepted;   /* Solar Thermal Energy Intercepted */
+//   double q_cond_loss;     /* Conduction Loss */
+//   double q_conv_loss;     /* Convection Loss */
+//   double opt_efficiency;  /* Optical (Theoretical) Efficiency */
+//   double op_temperature;  /* Operating Temperature */
+//   double max_temperature; /* Max Temperature */
+//   ThermalProperties() : q_intercepted(0.0), q_cond_loss(0.0), q_conv_loss(0.0),
+//                         opt_efficiency(0.0), op_temperature(0.0), max_temperature(0.0) {}
+//   ThermalProperties(const double &qint, const double &q_cond, const double &q_conv,
+//                     const double &optE, const double &opT, const double &maxT)
+//       : q_intercepted(qint), q_cond_loss(q_cond), q_conv_loss(q_conv),
+//         opt_efficiency(optE), op_temperature(opT), max_temperature(maxT) {}
+// };
 
 /**
  * @brief :
@@ -84,61 +110,78 @@ struct ThermalProperties
 
 class Collector
 {
+protected:
+  double temperature(const double &energy_rate, const double &emissivity, const double &area) const
+  {
+    /* using stefan boltzmann equation */
+    return (pow((energy_rate / (emissivity * area * STEFAN_BOLTZMANN)), 0.25) - 273.15); /* in Celsius */
+  }
+
 public:
   virtual bool IsInitialized() const = 0;
-  virtual ThermalProperties GetCollectorThermalProperties(const GeoWeatherData &weather,
-                                                          const GeoSolarRadiationData &solar_rad) const = 0;
+  virtual RayTraceResult RunAnalysis(
+      const GeoDateTimeData &dataTime,
+      const GeoLocationData &gLocation,
+      const GeoWeatherData &weather,
+      const GeoSolarRadiationData &solar_rad) const = 0;
 };
 
 class ParabolicDish : public Collector
 {
-protected:
+public:
+  ParabolicDish(const std::string &dish_material_name, const std::string &reactor_material_name,
+                const double &dish_diameter, const double &dish_depth, const double &reactor_width,
+                const double &reactor_length);
+
+  ParabolicDish(const std::string &dish_material_name, const std::string &reactor_material_name,
+                const double &dish_diameter, const double &dish_depth, const double &reactor_width);
+
+  RayTraceResult RunAnalysis(const GeoDateTimeData &dataTime,
+                             const GeoLocationData &gLocation,
+                             const GeoWeatherData &weather,
+                             const GeoSolarRadiationData &solar_rad) const override;
+
+  bool IsInitialized() const override;
+
+private:
+  std::unique_ptr<SolTraceModel> m_STraceModel;
   std::unique_ptr<Dimension> m_DishDimension = nullptr;
   std::unique_ptr<Dimension> m_ReactorDimension = nullptr;
   std::unique_ptr<Material> m_DishMaterial = nullptr;
   std::unique_ptr<Material> m_ReactorMaterial = nullptr;
+  double m_ReceiverDiameter;
   // std::unique_ptr<ConductionLoss> m_ConductionLoss;
   std::unique_ptr<ConvectiveLoss> m_ConvectiveLoss;
 
+  double geometric_ratio() const;
+
+  double intercepted_energy(const GeoSolarRadiationData &solar_rad) const;
+};
+
+class FlatPlate : public Collector
+{
 public:
-  ParabolicDish(const std::string &dish_material_name, const std::string &reactor_material_name,
-                const double &dish_diameter, const double &reactor_width, const double &reactor_length = 0)
-  {
-    m_DishDimension = std::make_unique<Parabola>(dish_diameter);
-    reactor_length == 0 ? m_ReactorDimension = std::make_unique<Parabola>(reactor_width)
-                        : m_ReactorDimension = std::make_unique<FlatSurface>(reactor_width, reactor_length);
+  FlatPlate(const std::string &surface_material_name, const std::string &absorber_material_name,
+            const double &surface_width, const double &surface_length, const double &absorber_width,
+            const double &absorber_length);
 
-    // Initialize both dish and reactor material
-    MaterialProperties matProp;
-    Material dishMat, reactorMat;
-    if (!matProp.FetchMaterial(dish_material_name, dishMat))
-    {
-      std::cerr << "Material name not found in material.conf: " << dish_material_name << std::endl;
-      return;
-    }
-    m_DishMaterial = std::make_unique<Material>(dishMat);
+  FlatPlate(const std::string &surface_material_name, const std::string &absorber_material_name,
+            const double &surface_width, const double &surface_length);
 
-    if (!matProp.FetchMaterial(reactor_material_name, reactorMat))
-    {
-      std::cerr << "Material name not found in material.conf: " << reactor_material_name << std::endl;
-      return;
-    }
-    m_ReactorMaterial = std::make_unique<Material>(reactorMat);
+  RayTraceResult RunAnalysis(const GeoDateTimeData &dataTime,
+                             const GeoLocationData &gLocation,
+                             const GeoWeatherData &weather,
+                             const GeoSolarRadiationData &solar_rad) const override;
 
-    // Initialize Collector losses
-    if (m_ReactorDimension)
-    {
-      m_ConvectiveLoss = std::make_unique<ConvectiveLoss>(m_ReactorDimension->GetArea());
-    }
-  }
+  bool IsInitialized() const override;
 
-  ThermalProperties GetCollectorThermalProperties(const GeoWeatherData &weather,
-                                                  const GeoSolarRadiationData &solar_rad) const override
-  {
-  }
+private:
+  std::unique_ptr<Dimension> m_SurfaceDimension = nullptr;
+  std::unique_ptr<Dimension> m_AbsorberDimension = nullptr;
+  std::unique_ptr<Material> m_SurfaceMaterial = nullptr;
+  std::unique_ptr<Material> m_AbsorberMaterial = nullptr;
+  std::unique_ptr<ConductionLoss> m_ConductionLoss;
+  std::unique_ptr<ConvectiveLoss> m_ConvectiveLoss;
 
-  bool IsInitialized() const override
-  {
-    return (m_DishDimension && m_ReactorDimension && m_DishMaterial && m_ReactorMaterial && m_ConvectiveLoss);
-  }
+  double intercepted_energy(const GeoSolarRadiationData &solar_rad) const;
 };

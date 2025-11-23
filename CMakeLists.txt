@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(BUILD_SENSOR_APP "Build sensor app" OFF) 
 option(BUILD_API_APP "Build api app" OFF) 
 option(BUILD_DB_APP "Build db app" OFF) 
+option(BUILD_PLATE_TEST "Build collector test" OFF) 
 
 
 # Configuration-specific flags
@@ -19,15 +20,23 @@ set(ENABLE_OPTIMIZATIONS OFF CACHE BOOL "Enable aggressive optimizations")
 
 # add compilation folders
 add_subdirectory(Tracking-Algorithm)
-add_subdirectory(src)
+
 
 if(BUILD_DB_APP)
   add_subdirectory(Data-Service)
   add_subdirectory(Database-Service)
 endif()
 
+if(BUILD_PLATE_TEST)
+  add_subdirectory(Modelling)
+  add_subdirectory(Collector)
+endif()
+
+add_subdirectory(src)
+
 # Print configuration summary
 message(STATUS "Build configuration:")
 message(STATUS "  Build Project SENSOR_APP: ${BUILD_SENSOR_APP}")
 message(STATUS "  Build Project API_APP: ${BUILD_API_APP}")
 message(STATUS "  Build Project DB_APP: ${BUILD_DB_APP}")
+message(STATUS "  Build Project PLATE_TEST: ${BUILD_PLATE_TEST}")

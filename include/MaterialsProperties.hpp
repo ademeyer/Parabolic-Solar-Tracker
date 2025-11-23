@@ -5,20 +5,34 @@
 struct Material
 {
   std::string name;
-  double melting_point;      /* Kelvin */
-  double max_operating_temp; /* Kelvin */
-  double emissivity;
-  double absorptivity;
+  double melting_point;        /* Kelvin */
+  double max_operating_temp;   /* Kelvin */
+  double reflectivity;         /* ρ */
+  double absorptivity;         /* α */
+  double emissivity;           /* ε */
+  double transmittivity;       /* τ */
   double thermal_conductivity; /*W/m.K*/
   double thickness;            /* meter */
+  void DumpInfo() const
+  {
+    std::cout << "=============== Material Name: " << name << " ===============" << std::endl;
+    std::cout << "Melting Point: " << melting_point << " [°C]" << std::endl;
+    std::cout << "Max Operating Temp: " << max_operating_temp << " [°C]" << std::endl;
+    std::cout << "Reflectivity: " << reflectivity << std::endl;
+    std::cout << "Absorptivity: " << absorptivity << std::endl;
+    std::cout << "Emissivity: " << emissivity << std::endl;
+    std::cout << "Transmitivity: " << transmittivity << std::endl;
+    std::cout << "Thermal Conductivity: " << thermal_conductivity << " [W/m.K]" << std::endl;
+    std::cout << "Thickness: " << thickness << " [m]" << std::endl;
+  }
   bool IsMaterialSuitable(const double &temp) const { return temp < melting_point; }
   Material()
-      : name(""), melting_point(0.0), max_operating_temp(0.0), emissivity(0.0),
-        absorptivity(0.0), thermal_conductivity(0.0), thickness(0.0) {}
-  Material(const std::string &n, const double &mp, const double &mop,
-           const double &em, const double &abs, const double &thc, const double &th)
-      : name(n), melting_point(mp), max_operating_temp(mop), emissivity(em),
-        absorptivity(abs), thermal_conductivity(thc), thickness(th) {}
+      : name(""), melting_point(0.0), max_operating_temp(0.0), reflectivity(0.0), absorptivity(0.0),
+        emissivity(0.0), transmittivity(0.0), thermal_conductivity(0.0), thickness(0.0) {}
+  Material(const std::string &n, const double &mp, const double &mop, const double &refl,
+           const double &absor, const double &emmi, const double &trans, const double &thc, const double &th)
+      : name(n), melting_point(mp), max_operating_temp(mop), reflectivity(refl), absorptivity(absor),
+        emissivity(emmi), transmittivity(trans), thermal_conductivity(thc), thickness(th) {}
 };
 
 class MaterialsParser : public ConfigParser<std::vector<Material>>
@@ -38,10 +52,10 @@ public:
       auto end = std::sregex_iterator();
       for (std::sregex_iterator it = begin; it != end; ++it)
         val.push_back(std::stod(it->str()));
-      if (val.size() != 6)
+      if (val.size() != 8)
         continue;
       result.push_back(Material(mp.first, val[0],
-                                val[1], val[2], val[3], val[4], val[5]));
+                                val[1], val[2], val[3], val[4], val[5], val[6], val[7]));
     }
 
     return result;
