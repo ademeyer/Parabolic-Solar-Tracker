@@ -17,4 +17,5 @@ struct Point3f
   bool IsValid() const { return !(X == 0.0 && X == Y && Y == Z); }
   Point3f() : X(0.0), Y(0.0), Z(0.0) {}
   Point3f(const double &x, const double &y, const double &z) : X(x), Y(y), Z(z) {}
+  auto operator<=>(const Point3f &) const = default;
 };
