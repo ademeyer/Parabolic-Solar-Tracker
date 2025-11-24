@@ -59,7 +59,7 @@ RayTraceResult ParabolicDish::RunAnalysis(const GeoDateTimeData &dataTime,
   SPA_Input spa_in(dataTime, gLocation, weather);
 
   auto spa_data = getSunPosition(&spa_in);
-  if (!spa_data.IsValid())
+  if (!spa_data)
   {
     std::cerr << "Invalid sun position data: Error: " << spa_data.errCode << std::endl;
     return {};

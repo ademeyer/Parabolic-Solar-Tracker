@@ -76,7 +76,7 @@ int main()
   {
     std::cout << "***************************************************" << addr << "******************************************************" << std::endl;
     PrintISensorData(gLoc);
-    if (!gLoc.IsValid())
+    if (!gLoc)
     {
       std::cout << "Invalid Geo Location Data for " << addr << std::endl;
       continue;
@@ -93,7 +93,7 @@ int main()
       continue;
     }
     auto weather = wService->GetServiceData();
-    if (!weather.IsValid())
+    if (!weather)
     {
       std::cout << "Invalid Geo Weather Data for " << addr << std::endl;
       continue;
@@ -110,7 +110,7 @@ int main()
       continue;
     }
     auto dateTime = dtService->GetServiceData();
-    if (!dateTime.IsValid())
+    if (!dateTime)
     {
       std::cout << "Invalid Geo Time Data for " << addr << std::endl;
       continue;
@@ -125,7 +125,7 @@ int main()
     if (solarService->Initialize() == 0)
     {
       auto solarData = solarService->GetServiceData();
-      if (solarData.IsValid())
+      if (solarData)
         PrintISensorData(solarData);
       else
         std::cout << "Invalid Solar Radiation Data for " << addr << std::endl;
@@ -140,7 +140,7 @@ int main()
     in.decimalYear = dateTime.GetDecimalYear();
     in.pos = gLoc;
     auto gMag_data = getDeclinition(&in);
-    if (gMag_data.IsValid())
+    if (gMag_data)
     {
       PrintISensorData(gMag_data);
     }
@@ -151,7 +151,7 @@ int main()
                      weather);
 
     auto spa_data = getSunPosition(&spa_in);
-    if (spa_data.IsValid())
+    if (spa_data)
     {
       PrintISensorData(spa_data);
     }

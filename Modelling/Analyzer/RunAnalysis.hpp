@@ -141,7 +141,7 @@ public:
         // PrintISensorData(avg_solar);
         // PrintISensorData(avg_weather);
 
-        if (!(avg_weather.IsValid() && avg_solar.IsValid()))
+        if (!(avg_weather && avg_solar))
         {
           std::cerr << "Either or Both solar and weather data is Invalid\n";
           continue;

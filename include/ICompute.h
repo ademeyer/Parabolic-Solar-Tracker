@@ -21,7 +21,7 @@ struct SunPositionData
   double incidence; // Incidence [in degrees]
   Time sunrise;     // Sunrise Time [in Time]
   Time sunset;      // Sunset Time [in Time]
-  bool IsValid() const { return errCode == 0; }
+  operator bool() const { return errCode == 0; }
   SunPositionData()
       : errCode(-1), elevation(0.0), azimuth(0.0), incidence(0.0),
         sunrise(Time(0, 0, 0, 0)), sunset(Time(0, 0, 0, 0)) {}
@@ -59,7 +59,7 @@ struct GeoMagneticData
   double sv; /* Secular variable / Annual Changes (in nT) */
   MagComponents magData;
   MagComponents magDataErr;
-  bool IsValid() const { return errCode == 0; }
+  operator bool() const { return errCode == 0; }
   constexpr double GetLocalMagneticNorth() const { return magData.X == 0 ? 0.0 : atan(magData.Y / magData.X); }
   constexpr double GetGeoMagneticNorth() const { return GetLocalMagneticNorth() - magData.D; }
 };

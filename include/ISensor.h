@@ -15,7 +15,7 @@ struct IMUSensorData
   Point3f accel; /* X, Y, Z (m/s^2) */
   Point3f gyro;  /* Yaw, Pitch, Roll (degree) */
   Point3f mag;   /* X, Y, Z (uT) */
-  bool IsValid() const { return (accel.IsValid() && gyro.IsValid() && mag.IsValid()); }
+  operator bool() const { return (accel && gyro && mag); }
   IMUSensorData() : accel(Point3f()), gyro(Point3f()), mag(Point3f()) {}
   IMUSensorData(const Point3f &a, const Point3f &g, const Point3f &m)
       : accel(a), gyro(g), mag(m) {}
@@ -28,7 +28,7 @@ struct GeoLocationData
   double Altitude;  /* degree */
   double Speed;     /* degree */
   auto operator<=>(const GeoLocationData &) const = default;
-  bool IsValid() const { return !(Latitude == -MAXFLOAT && Longitude == -MAXFLOAT && Altitude == -MAXFLOAT && Speed == -MAXFLOAT); }
+  operator bool() const { return !(Latitude == -MAXFLOAT && Longitude == -MAXFLOAT && Altitude == -MAXFLOAT && Speed == -MAXFLOAT); }
   GeoLocationData() : Latitude(-MAXFLOAT), Longitude(-MAXFLOAT), Altitude(-MAXFLOAT), Speed(-MAXFLOAT) {}
   GeoLocationData(const double &lat, const double &lon, const double &alt, const double &speed)
       : Latitude(lat), Longitude(lon), Altitude(alt), Speed(speed) {}
@@ -40,43 +40,49 @@ struct GeoWeatherData
   double pressure;   /* in millibar */
   double humidity;   /* in % */
   double wind_speed; /* m/s */
-  GeoWeatherData &operator-(const GeoWeatherData &rhs)
+  GeoWeatherData operator-(const GeoWeatherData &rhs)
   {
     temp -= rhs.temp;
     pressure -= rhs.pressure;
     humidity -= rhs.humidity;
     wind_speed -= rhs.wind_speed;
+    return GeoWeatherData(temp, pressure, humidity, wind_speed);
   }
 
-  GeoWeatherData &operator+(const GeoWeatherData &rhs)
+  GeoWeatherData operator+(const GeoWeatherData &rhs)
   {
     temp += rhs.temp;
     pressure += rhs.pressure;
     humidity += rhs.humidity;
     wind_speed += rhs.wind_speed;
+    return GeoWeatherData(temp, pressure, humidity, wind_speed);
   }
 
-  GeoWeatherData &operator/(const GeoWeatherData &rhs)
+  GeoWeatherData operator/(const GeoWeatherData &rhs)
   {
     temp /= rhs.temp;
     pressure /= rhs.pressure;
     humidity /= rhs.humidity;
     wind_speed /= rhs.wind_speed;
+    return GeoWeatherData(temp, pressure, humidity, wind_speed);
   }
 
-  GeoWeatherData &operator/(const double &rhs)
+  GeoWeatherData operator/(const double &rhs)
   {
     temp /= rhs;
     pressure /= rhs;
     humidity /= rhs;
     wind_speed /= rhs;
+    return GeoWeatherData(temp, pressure, humidity, wind_speed);
   }
 
   auto operator<=>(const GeoWeatherData &) const = default;
 
-  bool IsValid() const
+  constexpr operator bool() const
   {
-    return !(temp == -MAXFLOAT && pressure == -MAXFLOAT && humidity == -MAXFLOAT && wind_speed == -MAXFLOAT);
+    return !((temp == -MAXFLOAT || pressure == -MAXFLOAT || humidity == -MAXFLOAT || wind_speed == -MAXFLOAT) ||
+             (std::isnan(temp) || std::isnan(pressure) || std::isnan(humidity) || std::isnan(wind_speed)) ||
+             (std::isinf(temp) || std::isinf(pressure) || std::isinf(humidity) || std::isinf(wind_speed)));
   }
   GeoWeatherData() : temp(-MAXFLOAT), pressure(-MAXFLOAT), humidity(-MAXFLOAT), wind_speed(-MAXFLOAT) {}
   GeoWeatherData(const double &t, const double &p, const double &h, const double &w)
@@ -90,40 +96,50 @@ struct GeoSolarRadiationData
   double GHI; // Global Horizontal Irradiance (W/m²)
   double DHH; // Direct Horizontal Irradiance (W/m²)
 
-  GeoSolarRadiationData &operator-(const GeoSolarRadiationData &rhs)
+  GeoSolarRadiationData operator-(const GeoSolarRadiationData &rhs)
   {
     DNI -= rhs.DNI;
     DHI -= rhs.DHI;
     GHI -= rhs.GHI;
     DHH -= rhs.DHH;
+    return GeoSolarRadiationData(DNI, DHI, GHI, DHH);
   }
 
-  GeoSolarRadiationData &operator+(const GeoSolarRadiationData &rhs)
+  GeoSolarRadiationData operator+(const GeoSolarRadiationData &rhs)
   {
     DNI += rhs.DNI;
     DHI += rhs.DHI;
     GHI += rhs.GHI;
     DHH += rhs.DHH;
+    return GeoSolarRadiationData(DNI, DHI, GHI, DHH);
   }
 
-  GeoSolarRadiationData &operator/(const GeoSolarRadiationData &rhs)
+  GeoSolarRadiationData operator/(const GeoSolarRadiationData &rhs)
   {
     DNI /= rhs.DNI;
     DHI /= rhs.DHI;
     GHI /= rhs.GHI;
     DHH /= rhs.DHH;
+    return GeoSolarRadiationData(DNI, DHI, GHI, DHH);
   }
 
-  GeoSolarRadiationData &operator/(const double &rhs)
+  GeoSolarRadiationData operator/(const double &rhs)
   {
     DNI /= rhs;
     DHI /= rhs;
     GHI /= rhs;
     DHH /= rhs;
+    return GeoSolarRadiationData(DNI, DHI, GHI, DHH);
   }
   auto operator<=>(const GeoSolarRadiationData &) const = default;
 
-  bool IsValid() const { return !(DNI == -MAXFLOAT && DHI == -MAXFLOAT && DHI == -MAXFLOAT && DHH == -MAXFLOAT); }
+  constexpr operator bool() const
+  {
+    return !((DNI == -MAXFLOAT || DHI == -MAXFLOAT || GHI == -MAXFLOAT || DHH == -MAXFLOAT) ||
+             (std::isnan(DNI) || std::isnan(DHI) || std::isnan(GHI) || std::isnan(DHH)) ||
+             (std::isinf(DNI) || std::isinf(DHI) || std::isinf(GHI) || std::isinf(DHH)));
+  }
+
   GeoSolarRadiationData() : DNI(-MAXFLOAT), DHI(-MAXFLOAT), GHI(-MAXFLOAT), DHH(-MAXFLOAT) {}
   GeoSolarRadiationData(const double &dni, const double &dhi, const double &ghi, const double &dhh)
       : DNI(dni), DHI(dhi), GHI(ghi), DHH(dhh) {}
@@ -136,7 +152,7 @@ struct Time
   int second;
   int timezone;
   auto operator<=>(const Time &) const = default;
-  bool IsValid() const { return !(hour <= -1 && minute <= -1 && second <= -1); }
+  constexpr operator bool() const { return !(hour <= -1 && minute <= -1 && second <= -1); }
   const char *c_str() const
   {
     static thread_local std::string str;
@@ -159,7 +175,7 @@ struct Date
   int month;
   int day;
   auto operator<=>(const Date &) const = default;
-  bool IsValid() const { return !(year <= -1 && month <= -1 && day <= -1); }
+  constexpr operator bool() const { return !(year <= -1 && month <= -1 && day <= -1); }
   const char *c_str() const
   {
     static thread_local std::string str;
@@ -179,7 +195,7 @@ struct DateTime
   Date date;
   Time time;
   auto operator<=>(const DateTime &) const = default;
-  bool IsValid() const { return (date.IsValid() && time.IsValid()); }
+  constexpr operator bool() const { return (date && time); }
   bool isLeapYear() const { return (date.year % 4 == 0) || (date.year % 100 != 0) || (date.year % 400 == 0); }
   int GetDaysInYear() const { return isLeapYear() ? 366 : 365; }
   int GetDayOfYear() const
@@ -225,7 +241,7 @@ struct DateTime
 struct GeoDateTimeData
 {
   DateTime dt;
-  bool IsValid() const { return dt.IsValid(); }
+  constexpr operator bool() const { return dt; }
   GeoDateTimeData() {}
   GeoDateTimeData(const std::tm &tm_s) : dt(tm_s) {}
   GeoDateTimeData(const std::string &datetimestr) : dt(datetimestr) {}

@@ -10,7 +10,7 @@ APIERROR APIManager::InitializeServices()
   auto address_loc = geo_service->GetServiceData();
   for (const auto &[addr, gLoc] : address_loc)
   {
-    if (!gLoc.IsValid())
+    if (!gLoc)
       return APIERROR::GEOLOCATIONDATAERROR;
 
     // Geo Weather service
@@ -22,7 +22,7 @@ APIERROR APIManager::InitializeServices()
       return APIERROR::GEOWEATHERINITERROR;
 
     auto weather = geo_weather->GetServiceData();
-    if (!weather.IsValid())
+    if (!weather)
       return APIERROR::GEOWEATHERDATAERROR;
 
     // Geo Date Time service
@@ -33,7 +33,7 @@ APIERROR APIManager::InitializeServices()
       return APIERROR::GEODATETIMEINITERROR;
 
     auto datetime = geo_datetime->GetServiceData();
-    if (!datetime.IsValid())
+    if (!datetime)
       return APIERROR::GEODATETIMEDATAERROR;
 
     // Get Solar Radiation service
@@ -44,7 +44,7 @@ APIERROR APIManager::InitializeServices()
       return APIERROR::GEOSOLARINITERROR;
 
     auto solar = geo_solar->GetServiceData();
-    if (!datetime.IsValid())
+    if (!datetime)
       return APIERROR::GEOSOLARDATAERROR;
 
     // save data
