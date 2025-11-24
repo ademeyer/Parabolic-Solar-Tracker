@@ -22,7 +22,7 @@ int main()
 {
   auto weather = GeoWeatherData(18.3, 1010.3, 18.9, 11.3);
   auto solar = GeoSolarRadiationData(849.89, 47.0, 127.0, 80.0);
-  auto dateTime = GeoDateTimeData("2025-11-21T17:35:01TZ-06");
+  auto dateTime = GeoDateTimeData("2025-11-21T12:35:01TZ-06");
   auto location = GeoLocationData(51.1507279, -114.1320235, 1150.0, 11);
 
   std::vector<std::pair<std::string, std::unique_ptr<Collector>>>

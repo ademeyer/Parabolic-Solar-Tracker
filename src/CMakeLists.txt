@@ -16,3 +16,7 @@ endif()
 if(BUILD_PLATE_TEST)
   add_subdirectory(plate-test)
 endif()
+
+if(BUILD_RUNNER_APP)
+  add_subdirectory(analysis-runner)
+endif()

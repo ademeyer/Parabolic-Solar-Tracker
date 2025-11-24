@@ -69,19 +69,21 @@ public:
           const auto &arr = configs["Date"];
           datestr = arr.at(0);
         }
-
-        auto coll_name = prefix + std::to_string(++cnt);
-        if (configs.find(coll_name) != configs.end())
+        else
         {
-          const auto &c = cfg.second;
-          if (c.size() < 5)
-            continue;
+          auto coll_name = prefix + std::to_string(++cnt);
+          if (configs.find(coll_name) != configs.end())
+          {
+            const auto &c = cfg.second;
+            if (c.size() < 5)
+              continue;
 
-          collector_specs.emplace_back(
-              coll_name, std::make_unique<Collector>(c[0], c[1],
-                                                     std::stod(c[2]), std::stod(c[3]),
-                                                     std::stod(c[4]),
-                                                     c.size() > 5 ? std::stod(c[5]) : 0.0));
+            collector_specs.emplace_back(
+                coll_name, std::make_unique<ParabolicDish>(c[0], c[1],
+                                                           std::stod(c[2]), std::stod(c[3]),
+                                                           std::stod(c[4]),
+                                                           c.size() > 5 ? std::stod(c[5]) : 0.0));
+          }
         }
       }
     }
@@ -119,11 +121,10 @@ public:
       std::cout << "Analysing Collector(s) in Location: " << dbd.first << std::endl;
       auto &dblog = dbd.second;
       auto &gLoc = dblog.m_Location;
-
-      auto hr_start = 9;
-      for (auto hr_start = 9; hr_start <= 18; hr_start += 3)
+      /* Analysing data between the 06:00 - 18:00 */
+      for (auto hr_start = 6; hr_start <= 18; hr_start += 3)
       {
-        auto analysis_time = datestr + "T" + std::to_string(hr_start) + ":00:00";
+        auto analysis_time = datestr + "T" + std::to_string(hr_start) + ":00:00TZ0";
         auto range_tsd = dblog.findTimeRange(analysis_time);
         if (range_tsd.empty())
         {
@@ -134,11 +135,11 @@ public:
         GeoSolarRadiationData avg_solar;
         GeoWeatherData avg_weather;
         // find Average data
-        for (const auto &t : range_tsd)
-        {
-          avg_solar = SolarRunninngAverage(t.p_SolarData);
-          avg_weather = WeatherRunninngAverage(t.p_WeatherData);
-        }
+        avg_solar = SolarRunninngAverage(range_tsd);
+        avg_weather = WeatherRunninngAverage(range_tsd);
+
+        // PrintISensorData(avg_solar);
+        // PrintISensorData(avg_weather);
 
         if (!(avg_weather.IsValid() && avg_solar.IsValid()))
         {
@@ -160,7 +161,7 @@ public:
                 << "==================== Running RayTrace Analysis for " << col.first << " =====================\n";
             auto results = c->RunAnalysis(dateTime, gLoc, avg_weather, avg_solar);
 
-            RayPathVisualizer::Plot3DRayPaths(results, (col.first + "_" + analysis_time));
+            RayPathVisualizer::Plot3DRayPaths(results, (dbd.first + "_" + col.first + "_" + analysis_time));
           }
         }
         std::cout << std::endl;
@@ -169,27 +170,84 @@ public:
   }
 
 private:
-  static GeoSolarRadiationData SolarRunninngAverage(GeoSolarRadiationData new_val)
+  static GeoSolarRadiationData SolarRunninngAverage(const std::vector<dBCommon::TimeSeriesData> &ts)
   {
-    static auto cur_avg = GeoSolarRadiationData(0.0, 0.0, 0.0, 0.0);
-    static long long count = 0;
-
-    cur_avg = cur_avg + (static_cast<GeoSolarRadiationData>((new_val - cur_avg) / (double)count));
-
-    ++count;
-
-    return cur_avg;
+    auto cur_avg = GeoSolarRadiationData(0.0, 0.0, 0.0, 0.0);
+    long count = 0;
+    for (const auto i : ts)
+    {
+      cur_avg = cur_avg + i.p_SolarData;
+      ++count;
+    }
+    return cur_avg / count;
   }
 
-  static GeoWeatherData WeatherRunninngAverage(GeoWeatherData new_val)
+  static GeoWeatherData WeatherRunninngAverage(const std::vector<dBCommon::TimeSeriesData> &ts)
   {
-    static auto cur_avg = GeoWeatherData(0.0, 0.0, 0.0, 0.0);
-    static long long count = 0;
+    auto cur_avg = GeoWeatherData(0.0, 0.0, 0.0, 0.0);
+    long count = 0;
+    for (const auto i : ts)
+    {
+      cur_avg = cur_avg + i.p_WeatherData;
+      ++count;
+    }
+    return cur_avg / count;
+  }
 
-    cur_avg = cur_avg + (static_cast<GeoWeatherData>((new_val - cur_avg) / (double)count));
-
-    ++count;
-
-    return cur_avg;
+  // General Print Helper Function
+  template <typename T>
+  static void PrintISensorData(const T &data)
+  {
+    if constexpr (std::is_same_v<T, GeoLocationData>)
+    {
+      std::cout << "====== GeoLocationData ======\n"
+                << "Latitute [degrees]: " << data.Latitude << std::endl
+                << "Longitude [degrees]: " << data.Longitude << std::endl
+                << "Altitude [meter]: " << data.Altitude << std::endl
+                << "Speed [m/s]: " << data.Speed << std::endl;
+    }
+    else if constexpr (std::is_same_v<T, GeoWeatherData>)
+    {
+      std::cout << "====== GeoWeatherData ======\n"
+                << "Temperature [deg. Celsius]: " << data.temp << std::endl
+                << "Pressure [milliBar]: " << data.pressure << std::endl
+                << "Humidity [%]: " << data.humidity << std::endl
+                << "Wind Speed [m/s]: " << data.wind_speed << std::endl;
+    }
+    else if constexpr (std::is_same_v<T, GeoDateTimeData>)
+    {
+      std::cout << "====== GeoDateTimeData ======\n"
+                << (data.dt.date.year) << "-" << data.dt.date.month << "-" << data.dt.date.day
+                << " " << data.dt.time.hour << ":" << data.dt.time.minute << ":" << data.dt.time.second
+                << "TZ" << data.dt.time.timezone << std::endl;
+    }
+    else if constexpr (std::is_same_v<T, GeoMagneticData>)
+    {
+      std::cout << "====== GeoMagneticData ======\n"
+                << "Local Magnetic North [degrees]: " << data.GetLocalMagneticNorth() << std::endl
+                << "Geo Magnetic North (True North) [degrees]: " << data.GetGeoMagneticNorth() << std::endl
+                << "Declinition [degrees]: " << data.magData.D << std::endl;
+    }
+    else if constexpr (std::is_same_v<T, SunPositionData>)
+    {
+      std::cout << "====== SunPositionData ======\n"
+                << "Azimuth [degrees]: " << data.azimuth << std::endl
+                << "Elevation [degrees]: " << data.elevation << std::endl
+                << "Incidence [degrees]: " << data.incidence << std::endl
+                << "Sunrise [local time]: " << data.sunrise.hour << ":" << data.sunrise.minute << ":" << data.sunrise.second << std::endl
+                << "Sunset [local time]: " << data.sunset.hour << ":" << data.sunset.minute << ":" << data.sunset.second << std::endl;
+    }
+    else if constexpr (std::is_same_v<T, GeoSolarRadiationData>)
+    {
+      std::cout << "====== GeoSolarRadiationData ======\n"
+                << "DNI [W/m²]: " << data.DNI << std::endl
+                << "DHI [W/m²]: " << data.DHI << std::endl
+                << "GHI [W/m²]: " << data.GHI << std::endl
+                << "DHH [W/m²]: " << data.DHH << std::endl;
+    }
+    else
+    {
+      static_assert(sizeof(T) == 0, "Unknown ISensor Data type");
+    }
   }
 };

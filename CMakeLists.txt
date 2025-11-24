@@ -12,6 +12,7 @@ option(BUILD_SENSOR_APP "Build sensor app" OFF)
 option(BUILD_API_APP "Build api app" OFF) 
 option(BUILD_DB_APP "Build db app" OFF) 
 option(BUILD_PLATE_TEST "Build collector test" OFF) 
+option(BUILD_RUNNER_APP "Build Analysis Runner Tool" OFF) 
 
 
 # Configuration-specific flags
@@ -24,10 +25,13 @@ add_subdirectory(Tracking-Algorithm)
 
 if(BUILD_DB_APP)
   add_subdirectory(Data-Service)
+endif()
+
+if(BUILD_DB_APP OR BUILD_RUNNER_APP)
   add_subdirectory(Database-Service)
 endif()
 
-if(BUILD_PLATE_TEST)
+if(BUILD_PLATE_TEST OR BUILD_RUNNER_APP)
   add_subdirectory(Modelling)
   add_subdirectory(Collector)
 endif()
@@ -40,3 +44,4 @@ message(STATUS "  Build Project SENSOR_APP: ${BUILD_SENSOR_APP}")
 message(STATUS "  Build Project API_APP: ${BUILD_API_APP}")
 message(STATUS "  Build Project DB_APP: ${BUILD_DB_APP}")
 message(STATUS "  Build Project PLATE_TEST: ${BUILD_PLATE_TEST}")
+message(STATUS "  Build Project Analysis Runner Tool: ${BUILD_RUNNER_APP}")

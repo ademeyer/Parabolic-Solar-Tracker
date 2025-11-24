@@ -68,6 +68,9 @@ RayTraceResult ParabolicDish::RunAnalysis(const GeoDateTimeData &dataTime,
   /* Estimate ray number based on the amount of direct radiation received */
   int ray_num = solar_rad.DNI * RAY_NUM_MAX / SOLAR_CONSTANT;
 
+  if (ray_num < 0)
+    return {};
+
   return m_STraceModel->RunAnalysis(spa_data.azimuth, spa_data.elevation, ray_num);
 }
 
