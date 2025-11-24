@@ -118,7 +118,7 @@ public:
     // Begin Analysing
     for (auto &dbd : dblogged_data)
     {
-      std::cout << "Analysing Collector(s) in Location: " << dbd.first << std::endl;
+      std::cout << "==================================================== Analysing Collector(s) in Location: " << dbd.first << "====================================================" << std::endl;
       auto &dblog = dbd.second;
       auto &gLoc = dblog.m_Location;
       /* Analysing data between the 06:00 - 18:00 */
@@ -158,7 +158,7 @@ public:
           {
             auto dateTime = GeoDateTimeData(analysis_time);
             std::cout
-                << "==================== Running RayTrace Analysis for " << col.first << " =====================\n";
+                << "====================" << dbd.first << ": Running RayTrace Analysis for " << col.first << " =====================\n";
             auto results = c->RunAnalysis(dateTime, gLoc, avg_weather, avg_solar);
 
             RayPathVisualizer::Plot3DRayPaths(results, (dbd.first + "_" + col.first + "_" + analysis_time));
