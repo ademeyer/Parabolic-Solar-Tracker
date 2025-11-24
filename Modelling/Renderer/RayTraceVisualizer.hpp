@@ -1,3 +1,5 @@
+#pragma once
+
 #include "matplotlibcpp.h"
 #include <vector>
 #include <map>
@@ -84,11 +86,12 @@ private:
 
     // createRegularGrid(x1, y1, z1, 100, dir_x1, dir_y1, dir_z1);
 
-    std::string fName = filename + "_PlotStage1RayPaths.png";
+    std::string fName = filename + "_stage_1_plot.png";
 
     plt::figure();
     // plt::plot_surface(dir_x1, dir_y1, dir_z1, {{"cmap", "viridis"}});
     plt::scatter(x1, y1, z1, 1.0, {{"c", "teal"}, {"cmap", "viridis"}});
+    plt::title("Dish: Flux Distribution");
     plt::xlabel("x-axis (m)");
     plt::ylabel("y-axis (m)");
     plt::set_zlabel("z-axis (m)");
@@ -154,13 +157,13 @@ private:
       }
     }
 
-    std::string fName = filename + "_PlotStage2RayPaths.png";
+    std::string fName = filename + "_stage_2_plot.png";
     plt::figure();
 
     for (int i = 0; i < color_size; ++i)
       plt::scatter(data_point[i].first, data_point[i].second, 1.0, {{"c", colors[i]}});
 
-    plt::title("Stage 2 - Parabolic Receiver: Flux Distribution");
+    plt::title("Receiver: Flux Distribution");
     plt::xlabel("x-axis");
     plt::ylabel("y-axis");
     plt::grid(true);
@@ -215,7 +218,7 @@ private:
       }
     }
 
-    std::string fName = filename + "_PlotCompleteRayPaths.png";
+    std::string fName = filename + "_stage1_stage2_raytrace.png";
     plt::figure();
     plt::plot3(ray_x, ray_y, ray_z, {{"c", "gold"}, {"linewidth", "0.125"}});
     plt::title("RayTrace: Dish → Receiver");
