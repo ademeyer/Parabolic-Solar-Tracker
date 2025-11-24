@@ -61,6 +61,30 @@ CREATE TABLE IF NOT EXISTS )" + SolarRadiationTableName +
 );
 )";
 
+  static const std::string RetrieveDailyLoggedData = R"(
+        SELECT 
+            l.name AS location_name,
+            l.latitude,
+            l.longitude,
+            l.altitude,
+            w.temperature,
+            w.pressure,
+            w.humidity,
+            w.wind_speed,
+            s.dni,
+            s.dhi,
+            s.ghi,
+            s.direct_horizontal,
+            s.logged_at AS radiation_logged_at
+        FROM locations l
+        LEFT JOIN weather_data w ON l.location_id = w.location_id 
+            AND date(w.logged_at) = ?
+        LEFT JOIN solar_radiation s ON l.location_id = s.location_id 
+            AND date(s.logged_at) = ?
+        WHERE (w.weather_id IS NOT NULL OR s.radiation_id IS NOT NULL)
+        ORDER BY l.location_id, w.logged_at, s.logged_at;
+)";
+
   const std::string InsertLocationTableSQL = "INSERT OR IGNORE INTO " + LocationTableName +
                                              " (name, latitude, longitude, altitude) "
                                              "VALUES (?, ?, ?, ?);";
@@ -119,5 +143,43 @@ CREATE TABLE IF NOT EXISTS )" + SolarRadiationTableName +
     {
       return {location_id, srd.DNI, srd.DHI, srd.GHI, srd.DHH, logTime};
     }
+  };
+
+  struct TimeSeriesData
+  {
+    DateTime p_DateTime;
+    GeoSolarRadiationData p_SolarData;
+    GeoWeatherData p_WeatherData;
+    TimeSeriesData(const DateTime &dt,
+                   const GeoSolarRadiationData &solar,
+                   const GeoWeatherData &weather)
+        : p_DateTime(dt), p_SolarData(solar), p_WeatherData(weather) {}
+  };
+  struct DBLoggedData
+  {
+    GeoLocationData m_Location;
+    std::vector<TimeSeriesData> p_TimeSeriesData;
+    void addSeriesData(const TimeSeriesData &tsd) { p_TimeSeriesData.push_back(tsd); }
+    std::vector<TimeSeriesData> findTimeRange(const std::string &dtstr)
+    {
+      const auto &dt = DateTime(dtstr);
+      std::vector<TimeSeriesData>
+          results;
+      for (const auto &tsd : p_TimeSeriesData)
+      {
+        if (dt > tsd.p_DateTime)
+          continue;
+
+        results.push_back(tsd);
+
+        if (dt < tsd.p_DateTime)
+          break;
+      }
+
+      return results;
+    }
+    DBLoggedData() {}
+    DBLoggedData(const GeoLocationData &loc, const TimeSeriesData &tsd)
+        : m_Location(loc) { addSeriesData(tsd); }
   };
 }
