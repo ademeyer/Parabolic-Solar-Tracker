@@ -8,20 +8,22 @@
 /* Struct to hold Ray Trace Result */
 struct RayMap
 {
+  int ElementMap, RayNumber;
   double X, Y, Z, Xcos, Ycos, Zcos;
-  int StageMap, ElementMap, RayNumber;
   RayMap(const double &x, const double &y, const double &z,
          const double &xcos, const double &ycos, const double &zcos,
-         const int &stgmap, const int &elemap, const int &raynum)
-      : X(x), Y(y), Z(z), Xcos(xcos), Ycos(ycos), Zcos(zcos),
-        StageMap(stgmap), ElementMap(elemap), RayNumber(raynum) {}
+         const int &elemap, const int &raynum)
+      : X(x), Y(y), Z(z), Xcos(xcos),
+        Ycos(ycos), Zcos(zcos),
+        ElementMap(elemap), RayNumber(raynum) {}
 };
 
 struct RayTraceResult
 {
-  double SunXmin, SunXmax, SunYmin, SunYmax;
   int SunRayCount, Length;
-  std::vector<RayMap> FluxMap;
+  double SunXmin, SunXmax, SunYmin, SunYmax;
+  double Sun_x, Sun_y, Sun_z;
+  std::map<int, std::vector<RayMap>> FluxMap; // stage_id, RayMap
 };
 
 struct CollectorSpecs
@@ -83,7 +85,10 @@ private:
   void setupSun(const double &azimuth,
                 const double &elevation);
 
-  void processResult(RayTraceResult &result);
+  void processResult(const double &lat,
+                     const double &day_of_year,
+                     const double &hour,
+                     RayTraceResult &result);
 
 public:
   SolTraceModel(const std::vector<CollectorSpecs> &specs);
@@ -91,7 +96,10 @@ public:
   void Cleanup();
   RayTraceResult RunAnalysis(const double &azimuth,
                              const double &elevation,
-                             int ray_num);
+                             int ray_num,
+                             const double &lat,
+                             const double &day_of_year,
+                             const double &hour);
 };
 
 #endif // __SOLTRACEMODEL_H__

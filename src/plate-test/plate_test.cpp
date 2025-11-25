@@ -8,14 +8,19 @@ void printThermalProps(const RayTraceResult &thp)
   std::cout << "SunYmin: " << thp.SunYmin << " [unit]" << std::endl;
   std::cout << "SunYmax: " << thp.SunYmax << " [unit]" << std::endl;
   std::cout << "SunRayCount: " << thp.SunRayCount << " [unit]" << std::endl;
-  std::cout << "Length: " << thp.Length << " [unit]" << std::endl;
-  // std::cout << "Xi\tYi\tZi\tXcos\tYcos\tZcos\t\tStageMap\tElementMap\tRayNumber" << std::endl;
-  // for (const auto &mp : thp.FluxMap)
-  // {
-  //   std::cout << mp.X << "\t" << mp.Y << "\t" << mp.Z << "\t" << mp.Xcos << "\t" << mp.Ycos << "\t"
-  //             << mp.Zcos << "\t\t" << mp.StageMap << "\t" << mp.ElementMap << "\t" << mp.RayNumber << "\n";
-  // }
-  // std::cout << std::endl;
+  std::cout << "Sun Position: " << thp.Sun_x << ", " << thp.Sun_y << ", " << thp.Sun_z << " [x,y,z]" << std::endl;
+  std::cout << "Total Intercepted Ray: " << thp.Length << " [unit]" << std::endl;
+  for (const auto &[stage_id, flxmap] : thp.FluxMap)
+  {
+    std::cout << "================================================== stage id: " << stage_id << "" << flxmap.size() << " ==================================================\n";
+    // std::cout << "Xi\tYi\tZi\tXcos\tYcos\tZcos\tElementMap\tRayNumber" << std::endl;
+    // for (const auto &mp : flxmap)
+    // {
+    //   std::cout << mp.X << "," << mp.Y << "," << mp.Z << "," << mp.Xcos << "," << mp.Ycos << ","
+    //             << mp.Zcos << "," << mp.ElementMap << "," << mp.RayNumber << "\n";
+    // }
+  }
+  std::cout << std::endl;
 }
 
 int main()

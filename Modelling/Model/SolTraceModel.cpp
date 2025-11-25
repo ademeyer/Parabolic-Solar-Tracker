@@ -55,7 +55,10 @@ void SolTraceModel::Cleanup()
 
 RayTraceResult SolTraceModel::RunAnalysis(const double &azimuth,
                                           const double &elevation,
-                                          int ray_num)
+                                          int ray_num,
+                                          const double &lat,
+                                          const double &day_of_year,
+                                          const double &hour)
 {
   if (!m_Initialized)
     return {};
@@ -76,7 +79,7 @@ RayTraceResult SolTraceModel::RunAnalysis(const double &azimuth,
   RayTraceResult results;
   if (result_code >= 0)
   {
-    processResult(results);
+    processResult(lat, day_of_year, hour, results);
   }
   else
   {
@@ -91,37 +94,11 @@ RayTraceResult SolTraceModel::RunAnalysis(const double &azimuth,
 }
 
 /***************************** Private Member Functions **********************************/
-void SolTraceModel::processResult(RayTraceResult &results)
+void SolTraceModel::processResult(const double &lat,
+                                  const double &day_of_year,
+                                  const double &hour,
+                                  RayTraceResult &results)
 {
-
-  { // Get number of intersections
-    int Length = st_num_intersections(m_stContext);
-    std::cout << "Total intersections: " << Length << std::endl;
-
-    // Get stage info
-    int num_stages = st_num_stages(m_stContext);
-    std::cout << "Number of stages in context: " << num_stages << std::endl;
-
-    // Count stage occurrences
-    std::map<int, int> stage_counts;
-    int *Sm = new int[Length];
-    st_stagemap(m_stContext, Sm);
-
-    for (int i = 0; i < Length; i++)
-    {
-      stage_counts[Sm[i]]++;
-    }
-
-    std::cout << "=== STAGE MAP DISTRIBUTION ===" << std::endl;
-    for (const auto &[stage, count] : stage_counts)
-    {
-      std::cout << "StageMap = " << stage << ": " << count << " hits" << std::endl;
-    }
-    std::cout << "==============================" << std::endl;
-
-    delete[] Sm;
-  }
-
   // Get number of intersections
   int Length = st_num_intersections(m_stContext);
 
@@ -132,16 +109,10 @@ void SolTraceModel::processResult(RayTraceResult &results)
   }
 
   double SunXMin, SunXMax, SunYMin, SunYMax;
+  double sun_x, sun_y, sun_z;
   int SunRayCount;
-  st_sun_stats(m_stContext, &SunXMin, &SunXMax, &SunYMin, &SunYMax, &SunRayCount);
 
-  results.SunXmax = SunXMax;
-  results.SunXmin = SunXMin;
-  results.SunYmax = SunYMax;
-  results.SunYmin = SunYMin;
-  results.Length = Length;
-  results.SunRayCount = SunRayCount;
-
+  // tempoary allocation
   double *Xi = new double[Length];
   double *Yi = new double[Length];
   double *Zi = new double[Length];
@@ -152,6 +123,22 @@ void SolTraceModel::processResult(RayTraceResult &results)
   int *Sm = new int[Length];
   int *Rn = new int[Length];
 
+  st_sun_stats(m_stContext, &SunXMin, &SunXMax, &SunYMin, &SunYMax, &SunRayCount);
+  st_sun_position(m_stContext, lat, day_of_year, hour, &sun_x, &sun_y, &sun_z);
+
+  std::cout << "sun position in soltrace coordinate system[x, y, z]: "
+            << sun_x << ", " << sun_y << ", " << sun_z << std::endl;
+
+  results.SunXmax = SunXMax;
+  results.SunXmin = SunXMin;
+  results.SunYmax = SunYMax;
+  results.SunYmin = SunYMin;
+  results.Length = Length;
+  results.SunRayCount = SunRayCount;
+  results.Sun_x = sun_x;
+  results.Sun_y = sun_y;
+  results.Sun_z = sun_z;
+
   st_locations(m_stContext, Xi, Yi, Zi);
   st_cosines(m_stContext, Xc, Yc, Zc);
   st_elementmap(m_stContext, Em);
@@ -159,14 +146,22 @@ void SolTraceModel::processResult(RayTraceResult &results)
   st_raynumbers(m_stContext, Rn);
 
   auto &flxmp = results.FluxMap;
-  flxmp.reserve(Length);
 
   for (size_t i = 0; i < Length; i++)
   {
-    flxmp.push_back(RayMap(Xi[i], Yi[i], Zi[i],
-                           Xc[i], Yc[i], Zc[i],
-                           Sm[i], Em[i], Rn[i]));
+    flxmp[Sm[i]].push_back(RayMap(Xi[i], Yi[i], Zi[i],
+                                  Xc[i], Yc[i], Zc[i],
+                                  Em[i], Rn[i]));
   }
+
+  std::cout << "Total intersections: " << Length << std::endl;
+  std::cout << "Number of stages in context: " << flxmp.size() << std::endl;
+  std::cout << "=== STAGE MAP DISTRIBUTION ===" << std::endl;
+  for (const auto &[stage, map] : flxmp)
+  {
+    std::cout << "stage " << stage << ": Hits: " << map.size() << std::endl;
+  }
+  std::cout << "==============================" << std::endl;
 
   // Cleanup
   delete[] Xi;

@@ -43,20 +43,22 @@ ParabolicDish::ParabolicDish(const std::string &dish_material_name, const std::s
   auto dim = dynamic_cast<Parabola *>(m_DishDimension.get());
   if (!dim)
     throw std::runtime_error("Downcasting Failed\n");
+
   std::cout << "focal length: " << dim->GetFocalLength() << std::endl;
+
   std::vector<CollectorSpecs> specs = {
       CollectorSpecs("PabolarDish", dish_diameter, dish_diameter, m_DishMaterial->reflectivity, m_DishMaterial->absorptivity, 0.0, dim->GetFocalLength()),
       CollectorSpecs("ReactorPlate", reactor_width, reactor_length, m_ReactorMaterial->reflectivity, m_ReactorMaterial->absorptivity, 0.0, dim->GetFocalLength())};
   m_STraceModel = std::make_unique<SolTraceModel>(specs);
 }
 
-RayTraceResult ParabolicDish::RunAnalysis(const GeoDateTimeData &dataTime,
+RayTraceResult ParabolicDish::RunAnalysis(const GeoDateTimeData &dateTime,
                                           const GeoLocationData &gLocation,
                                           const GeoWeatherData &weather,
                                           const GeoSolarRadiationData &solar_rad) const
 {
   auto intercepted_q = intercepted_energy(solar_rad);
-  SPA_Input spa_in(dataTime, gLocation, weather);
+  SPA_Input spa_in(dateTime, gLocation, weather);
 
   auto spa_data = getSunPosition(&spa_in);
   if (!spa_data)
@@ -71,7 +73,12 @@ RayTraceResult ParabolicDish::RunAnalysis(const GeoDateTimeData &dataTime,
   if (ray_num <= 0)
     return {};
 
-  return m_STraceModel->RunAnalysis(spa_data.azimuth, spa_data.elevation, ray_num);
+  return m_STraceModel->RunAnalysis(spa_data.azimuth,
+                                    spa_data.elevation,
+                                    ray_num,
+                                    gLocation.Latitude,
+                                    dateTime.GetDecimalYear(),
+                                    dateTime.dt.time.hour);
 }
 
 ParabolicDish::ParabolicDish(const std::string &dish_material_name, const std::string &reactor_material_name,
