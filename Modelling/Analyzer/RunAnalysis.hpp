@@ -158,7 +158,7 @@ public:
           {
             auto dateTime = GeoDateTimeData(analysis_time);
             std::cout
-                << "====================" << dbd.first << ": Running RayTrace Analysis for " << col.first << " =====================\n";
+                << "==================== " << dbd.first << ": Running RayTrace Analysis for " << col.first << " =====================\n";
             auto results = c->RunAnalysis(dateTime, gLoc, avg_weather, avg_solar);
 
             RayPathVisualizer::Plot3DRayPaths(results, (dbd.first + "_" + col.first + "_" + analysis_time));
@@ -174,19 +174,19 @@ private:
   {
     auto cur_avg = GeoSolarRadiationData(0.0, 0.0, 0.0, 0.0);
     long count = 0;
-    for (const auto i : ts)
+    for (const auto &i : ts)
     {
       cur_avg = cur_avg + i.p_SolarData;
       ++count;
     }
-    return cur_avg / count;
+    return cur_avg / (double)count;
   }
 
   static GeoWeatherData WeatherRunninngAverage(const std::vector<dBCommon::TimeSeriesData> &ts)
   {
     auto cur_avg = GeoWeatherData(0.0, 0.0, 0.0, 0.0);
     long count = 0;
-    for (const auto i : ts)
+    for (const auto &i : ts)
     {
       cur_avg = cur_avg + i.p_WeatherData;
       ++count;

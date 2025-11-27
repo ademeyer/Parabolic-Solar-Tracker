@@ -12,7 +12,7 @@ void printThermalProps(const RayTraceResult &thp)
   std::cout << "Total Intercepted Ray: " << thp.Length << " [unit]" << std::endl;
   for (const auto &[stage_id, flxmap] : thp.FluxMap)
   {
-    std::cout << "================================================== stage id: " << stage_id << "" << flxmap.size() << " ==================================================\n";
+    std::cout << "================================================== stage id " << stage_id << ": " << flxmap.size() << " ==================================================\n";
     // std::cout << "Xi\tYi\tZi\tXcos\tYcos\tZcos\tElementMap\tRayNumber" << std::endl;
     // for (const auto &mp : flxmap)
     // {
@@ -27,7 +27,7 @@ int main()
 {
   auto weather = GeoWeatherData(18.3, 1010.3, 18.9, 11.3);
   auto solar = GeoSolarRadiationData(849.89, 47.0, 127.0, 80.0);
-  auto dateTime = GeoDateTimeData("2025-11-21T12:35:01TZ-06");
+  auto dateTime = GeoDateTimeData("2025-11-21T11:35:01TZ-06");
   auto location = GeoLocationData(51.1507279, -114.1320235, 1150.0, 11);
 
   std::vector<std::pair<std::string, std::unique_ptr<Collector>>>
@@ -53,10 +53,6 @@ int main()
       printThermalProps(results);
       RayPathVisualizer::Plot3DRayPaths(results, col.first);
     }
-    // FluxVisualizer::PlotFluxHeatmaps(results, col.first);
-    // DirectionVisualizer::PlotRayDirections(results);
-    //  RayTraceVisualizer::RenderStageMaps(results, "soltrace_visualization");
-    //   RayTraceVisualizer::Render3DView(results, "soltrace_3d.png");
   }
   std::cout << std::endl;
   return 0;
