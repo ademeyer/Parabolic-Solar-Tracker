@@ -213,11 +213,11 @@ void SolTraceModel::setupDish(const std::string &optics_name,
 
   setupCollector(optics_name,
                  surface_params,
-                 'c',
-                 'p',
-                 0.0, 0.0, 0.0,
-                 0.0, 0.0, focal_length,
-                 2, // 1=refract, 2=reflect
+                 width == height ? 'c' : 'r',
+                 focal_length == 0 ? 'f' : 'p',
+                 0.0, 0.0, 0.0, // origin
+                 0.0, 0.0, 1,   // aim
+                 2,             // 1=refract, 2=reflect
                  width,
                  height);
 
@@ -244,11 +244,11 @@ void SolTraceModel::setupReceiver(const std::string &optics_name,
 
   setupCollector(optics_name,
                  surface_params,
-                 'c',
-                 'f',
-                 0.0, 0.0, focal_length,
-                 0.0, 0.0, 1.0,
-                 1, // 1=refract, 2=reflect
+                 width == height ? 'c' : 'r',
+                 focal_length == 0 ? 'f' : 'p',
+                 0.0, 0.0, focal_length, // origin
+                 0.0, 0.0, -1,           // aim
+                 1,                      // 1=refract, 2=reflect
                  width,
                  height);
 
@@ -318,9 +318,6 @@ void SolTraceModel::setupCollector(const std::string &optics_name,
   if (stage_id < 0)
     throw std::runtime_error("Failed to add stage for collector");
 
-  auto t_az = z;
-  if (surface_type == 'f')
-    t_az = 0.0;
   /* Stage properties - aiming stage that tracks the sun */
   st_stage_flags(m_stContext, stage_id, 0, 1, 0);  // not virtual, multi-hit enabled, not trace-through
   st_stage_xyz(m_stContext, stage_id, x, y, z);    // position at origin
@@ -333,7 +330,7 @@ void SolTraceModel::setupCollector(const std::string &optics_name,
   /* Setup Element properties */
   st_element_enabled(m_stContext, stage_id, element_id, 1);
 
-  st_element_xyz(m_stContext, stage_id, element_id, x, y, t_az);
+  st_element_xyz(m_stContext, stage_id, element_id, x, y, z);
   st_element_aim(m_stContext, stage_id, element_id, ax, ay, az);
   st_element_zrot(m_stContext, stage_id, element_id, 0.0);
 

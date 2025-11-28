@@ -15,6 +15,7 @@
 class Dimension
 {
 public:
+  virtual ~Dimension() = default;
   virtual double GetArea() const = 0;
 };
 
@@ -64,29 +65,13 @@ public:
 
 class FlatSurface : public Dimension
 {
-  double m_Width;
   double m_Length;
+  double m_Width;
 
 public:
   FlatSurface(const double &length, const double &width) : m_Length(length), m_Width(width) {}
   double GetArea() const override { return m_Length * m_Width; }
 };
-
-// struct ThermalProperties
-// {
-//   double q_intercepted;   /* Solar Thermal Energy Intercepted */
-//   double q_cond_loss;     /* Conduction Loss */
-//   double q_conv_loss;     /* Convection Loss */
-//   double opt_efficiency;  /* Optical (Theoretical) Efficiency */
-//   double op_temperature;  /* Operating Temperature */
-//   double max_temperature; /* Max Temperature */
-//   ThermalProperties() : q_intercepted(0.0), q_cond_loss(0.0), q_conv_loss(0.0),
-//                         opt_efficiency(0.0), op_temperature(0.0), max_temperature(0.0) {}
-//   ThermalProperties(const double &qint, const double &q_cond, const double &q_conv,
-//                     const double &optE, const double &opT, const double &maxT)
-//       : q_intercepted(qint), q_cond_loss(q_cond), q_conv_loss(q_conv),
-//         opt_efficiency(optE), op_temperature(opT), max_temperature(maxT) {}
-// };
 
 /**
  * @brief :
@@ -111,6 +96,12 @@ public:
 class Collector
 {
 protected:
+  std::unique_ptr<Material> m_AbsorberMaterial = nullptr;
+  std::unique_ptr<Material> m_ReflectiveMaterial = nullptr;
+  bool CollectorIsInitialized() const;
+  Collector(const std::string &dish_material_name, const std::string &reactor_material_name);
+  Material GetAbsorberMaterial() const;
+  Material GetReflectiveMaterial() const;
   double temperature(const double &energy_rate, const double &emissivity, const double &area) const
   {
     /* using stefan boltzmann equation */
@@ -118,6 +109,7 @@ protected:
   }
 
 public:
+  virtual ~Collector() = default;
   virtual bool IsInitialized() const = 0;
   virtual RayTraceResult RunAnalysis(
       const GeoDateTimeData &dataTime,
@@ -149,15 +141,9 @@ private:
   std::unique_ptr<SolTraceModel> m_STraceModel;
   std::unique_ptr<Dimension> m_DishDimension = nullptr;
   std::unique_ptr<Dimension> m_ReactorDimension = nullptr;
-  std::unique_ptr<Material> m_DishMaterial = nullptr;
-  std::unique_ptr<Material> m_ReactorMaterial = nullptr;
   double m_ReceiverDiameter;
   // std::unique_ptr<ConductionLoss> m_ConductionLoss;
   std::unique_ptr<ConvectiveLoss> m_ConvectiveLoss;
-
-  double geometric_ratio() const;
-
-  double intercepted_energy(const GeoSolarRadiationData &solar_rad) const;
 };
 
 class FlatPlate : public Collector
@@ -178,12 +164,9 @@ public:
   bool IsInitialized() const override;
 
 private:
+  std::unique_ptr<SolTraceModel> m_STraceModel;
   std::unique_ptr<Dimension> m_SurfaceDimension = nullptr;
   std::unique_ptr<Dimension> m_AbsorberDimension = nullptr;
-  std::unique_ptr<Material> m_SurfaceMaterial = nullptr;
-  std::unique_ptr<Material> m_AbsorberMaterial = nullptr;
   std::unique_ptr<ConductionLoss> m_ConductionLoss;
   std::unique_ptr<ConvectiveLoss> m_ConvectiveLoss;
-
-  double intercepted_energy(const GeoSolarRadiationData &solar_rad) const;
 };

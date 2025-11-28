@@ -175,7 +175,7 @@ public:
           }
         }
         std::cout << std::endl;
-        // RayPathVisualizer::Plot3DRayPaths(ray_results, (dbd.first + "_" + analysis_time));
+        RayPathVisualizer::Plot3DRayPaths(ray_results, (dbd.first + "_" + analysis_time));
         time_interval.push_back(std::to_string(hr_start));
       }
       ValueVisualizer::PlotValueOnBarGraph(efficiency, time_interval, (dbd.first + "_" + datestr));
