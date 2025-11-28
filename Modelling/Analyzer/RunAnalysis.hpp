@@ -1,4 +1,5 @@
 #pragma once
+#include <map>
 #include "Collector.hpp"
 #include "RayTraceVisualizer.hpp"
 #include "SolarDatabaseManager.h"
@@ -118,10 +119,13 @@ public:
     // Begin Analysing
     for (auto &dbd : dblogged_data)
     {
-      std::cout << "==================================================== Analysing Collector(s) in Location: " << dbd.first << "====================================================" << std::endl;
+      std::cout << "==================================================== Analysing Collector(s) in Location: " << dbd.first << " ====================================================" << std::endl;
       auto &dblog = dbd.second;
       auto &gLoc = dblog.m_Location;
       /* Analysing data between the 06:00 - 18:00 */
+      std::map<std::string, std::vector<double>> efficiency;
+      std::vector<std::string> time_interval;
+
       for (auto hr_start = 6; hr_start <= 18; hr_start += 3)
       {
         auto analysis_time = datestr + "T" + std::to_string(hr_start) + ":00:00TZ0";
@@ -147,6 +151,7 @@ public:
           continue;
         }
 
+        std::map<std::string, RayTraceResult> ray_results;
         for (const auto &col : collector_specs)
         {
           auto &c = col.second;
@@ -155,21 +160,51 @@ public:
             std::cerr << col.first << " is not initialized\n";
             continue;
           }
+
           {
             auto dateTime = GeoDateTimeData(analysis_time);
             std::cout
                 << "==================== " << dbd.first << ": Running RayTrace Analysis for " << col.first << " =====================\n";
-            auto results = c->RunAnalysis(dateTime, gLoc, avg_weather, avg_solar);
 
-            RayPathVisualizer::Plot3DRayPaths(results, (dbd.first + "_" + col.first + "_" + analysis_time));
+            auto result = c->RunAnalysis(dateTime, gLoc, avg_weather, avg_solar);
+            ray_results[col.first] = result;
+
+            auto pdc = dynamic_cast<ParabolicDish *>(c.get());
+            auto receiverMaterial = pdc->GetReactorMaterial();
+            efficiency[col.first].push_back(GetOpticalEfficiencyFromRayResult(result, receiverMaterial.absorptivity));
           }
         }
         std::cout << std::endl;
+        // RayPathVisualizer::Plot3DRayPaths(ray_results, (dbd.first + "_" + analysis_time));
+        time_interval.push_back(std::to_string(hr_start));
       }
+      ValueVisualizer::PlotValueOnBarGraph(efficiency, time_interval, (dbd.first + "_" + datestr));
     }
   }
 
 private:
+  static double GetOpticalEfficiencyFromRayResult(const RayTraceResult &ray_result,
+                                                  const double &absorptivity = 1)
+  {
+    const int dish_id = 1, receiver_id = 2;
+    int Nr = 0, Nd = 0;
+
+    for (const auto &[id, flxmap] : ray_result.FluxMap)
+    {
+      if (id == dish_id)
+        Nd = flxmap.size();
+      else if (id == receiver_id)
+        Nr = flxmap.size();
+    }
+
+    if (Nd == 0)
+    {
+      std::cerr << "Dish Ray Hits can not be zero\n";
+      return 0.0;
+    }
+    return static_cast<double>((Nr / (double)Nd) * 100 * absorptivity);
+  }
+
   static GeoSolarRadiationData SolarRunninngAverage(const std::vector<dBCommon::TimeSeriesData> &ts)
   {
     auto cur_avg = GeoSolarRadiationData(0.0, 0.0, 0.0, 0.0);

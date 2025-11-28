@@ -52,6 +52,20 @@ ParabolicDish::ParabolicDish(const std::string &dish_material_name, const std::s
   m_STraceModel = std::make_unique<SolTraceModel>(specs);
 }
 
+Material ParabolicDish::GetReactorMaterial() const
+{
+  if (!m_ReactorMaterial)
+    return {};
+  return *m_ReactorMaterial.get();
+}
+
+Material ParabolicDish::GetDishMaterial() const
+{
+  if (!m_DishMaterial)
+    return {};
+  return *m_DishMaterial.get();
+}
+
 RayTraceResult ParabolicDish::RunAnalysis(const GeoDateTimeData &dateTime,
                                           const GeoLocationData &gLocation,
                                           const GeoWeatherData &weather,

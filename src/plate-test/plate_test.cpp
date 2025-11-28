@@ -39,6 +39,7 @@ int main()
   // specs.emplace_back(std::string("Flat-2"), std::make_unique<FlatPlate>("Iron-Glass", "Steel-Oxidized", 2.00, 1.50));
   // specs.emplace_back(std::string("Flat-3"), std::make_unique<FlatPlate>("Iron-Glass", "Iron-Glass", 2.00, 1.50));
 
+  std::map<std::string, RayTraceResult> ray_results;
   for (const auto &col : specs)
   {
     auto &c = col.second;
@@ -49,11 +50,12 @@ int main()
     }
     {
       std::cout << "=========== " << col.first << " thermal properties ===========\n";
-      auto results = c->RunAnalysis(dateTime, location, weather, solar);
-      printThermalProps(results);
-      RayPathVisualizer::Plot3DRayPaths(results, col.first);
+      auto result = c->RunAnalysis(dateTime, location, weather, solar);
+      printThermalProps(result);
+      ray_results[col.first] = result;
     }
   }
+  RayPathVisualizer::Plot3DRayPaths(ray_results, "single_loc");
   std::cout << std::endl;
   return 0;
 }

@@ -142,6 +142,8 @@ public:
                              const GeoSolarRadiationData &solar_rad) const override;
 
   bool IsInitialized() const override;
+  Material GetReactorMaterial() const;
+  Material GetDishMaterial() const;
 
 private:
   std::unique_ptr<SolTraceModel> m_STraceModel;

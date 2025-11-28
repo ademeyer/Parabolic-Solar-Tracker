@@ -21,7 +21,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
                                 ${CMAKE_CURRENT_SOURCE_DIR}/../../Modelling/Renderer
                                 ${CMAKE_CURRENT_SOURCE_DIR}/../../Modelling/Renderer/matplotlib-cpp
                                 ${CMAKE_CURRENT_SOURCE_DIR}/../../Collector
-                                "~/anaconda3/lib/python3.13/site-packages/numpy/_core/include"
+                                #"~/anaconda3/lib/python3.13/site-packages/numpy/_core/include"
                                 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${STATIC_LIBS} m Python3::Python)
