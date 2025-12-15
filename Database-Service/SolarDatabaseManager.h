@@ -1,6 +1,7 @@
 #ifndef __SOLARDATABASEMANAGER_H__
 #define __SOLARDATABASEMANAGER_H__
-#include <bits/stdc++.h>
+#include <vector>
+#include <unordered_map>
 #include <sqlite3.h>
 #include "database-common.hpp"
 

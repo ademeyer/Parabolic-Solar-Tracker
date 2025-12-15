@@ -1,11 +1,12 @@
 #pragma once
 #pragma warning(disable : 4996)
+#include <algorithm>
 #include "SolarDatabaseManager.h"
 
 SolarDatabaseManager::SolarDatabaseManager(const std::string &path) : m_DB_path(path)
 {
   if (!open())
-    std::runtime_error("Unable to open " + path + "\n");
+    throw std::runtime_error("Unable to open " + path + "\n");
 }
 
 SolarDatabaseManager::~SolarDatabaseManager() { close(); }

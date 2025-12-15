@@ -78,9 +78,7 @@ RayTraceResult SolTraceModel::RunAnalysis(const double &azimuth,
   int result_code = st_sim_run(m_stContext, 42, nullptr, nullptr); // seed = 42
   RayTraceResult results;
   if (result_code >= 0)
-  {
     processResult(lat, day_of_year, hour, results);
-  }
   else
   {
     std::cerr << "Ray tracing failed with code: " << result_code << std::endl;
@@ -190,6 +188,8 @@ void SolTraceModel::setupSun(const double &azimuth, const double &elevation)
 
   /* Configure sun () */
   st_sun(m_stContext, 0, 'p', 0.002327);
+
+  std::cout << "For Az: " << azimuth << ", El: " << elevation << ", sun position: [" << sun_x << ", " << sun_y << ", " << sun_z << "]\n";
 
   /* Set up sun direction */
   st_sun_xyz(m_stContext, sun_x, sun_y, sun_z);
