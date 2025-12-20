@@ -1,0 +1,6 @@
+[submodule "include/External/SolTrace"]
+	path = include/External/SolTrace
+	url = https://github.com/NREL/SolTrace.git
+[submodule "include/External/matplotlib-cpp"]
+	path = include/External/matplotlib-cpp
+	url = https://github.com/lava/matplotlib-cpp.git
