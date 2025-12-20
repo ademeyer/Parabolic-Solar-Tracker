@@ -46,7 +46,7 @@ struct GeoWeatherData
     pressure -= rhs.pressure;
     humidity -= rhs.humidity;
     wind_speed -= rhs.wind_speed;
-    return GeoWeatherData(temp, pressure, humidity, wind_speed);
+    return *this;
   }
 
   GeoWeatherData operator+(const GeoWeatherData &rhs)
@@ -55,7 +55,7 @@ struct GeoWeatherData
     pressure += rhs.pressure;
     humidity += rhs.humidity;
     wind_speed += rhs.wind_speed;
-    return GeoWeatherData(temp, pressure, humidity, wind_speed);
+    return *this;
   }
 
   GeoWeatherData operator/(const GeoWeatherData &rhs)
@@ -64,7 +64,7 @@ struct GeoWeatherData
     pressure /= rhs.pressure;
     humidity /= rhs.humidity;
     wind_speed /= rhs.wind_speed;
-    return GeoWeatherData(temp, pressure, humidity, wind_speed);
+    return *this;
   }
 
   GeoWeatherData operator/(const double &rhs)
@@ -73,7 +73,16 @@ struct GeoWeatherData
     pressure /= rhs;
     humidity /= rhs;
     wind_speed /= rhs;
-    return GeoWeatherData(temp, pressure, humidity, wind_speed);
+    return *this;
+  }
+
+  GeoWeatherData operator/(const ssize_t &rhs)
+  {
+    temp = static_cast<double>(temp / rhs);
+    pressure = static_cast<double>(pressure / rhs);
+    humidity = static_cast<double>(humidity / rhs);
+    wind_speed = static_cast<double>(wind_speed / rhs);
+    return *this;
   }
 
   auto operator<=>(const GeoWeatherData &) const = default;
@@ -102,7 +111,7 @@ struct GeoSolarRadiationData
     DHI -= rhs.DHI;
     GHI -= rhs.GHI;
     DHH -= rhs.DHH;
-    return GeoSolarRadiationData(DNI, DHI, GHI, DHH);
+    return *this;
   }
 
   GeoSolarRadiationData operator+(const GeoSolarRadiationData &rhs)
@@ -111,7 +120,7 @@ struct GeoSolarRadiationData
     DHI += rhs.DHI;
     GHI += rhs.GHI;
     DHH += rhs.DHH;
-    return GeoSolarRadiationData(DNI, DHI, GHI, DHH);
+    return *this;
   }
 
   GeoSolarRadiationData operator/(const GeoSolarRadiationData &rhs)
@@ -120,7 +129,7 @@ struct GeoSolarRadiationData
     DHI /= rhs.DHI;
     GHI /= rhs.GHI;
     DHH /= rhs.DHH;
-    return GeoSolarRadiationData(DNI, DHI, GHI, DHH);
+    return *this;
   }
 
   GeoSolarRadiationData operator/(const double &rhs)
@@ -129,7 +138,7 @@ struct GeoSolarRadiationData
     DHI /= rhs;
     GHI /= rhs;
     DHH /= rhs;
-    return GeoSolarRadiationData(DNI, DHI, GHI, DHH);
+    return *this;
   }
   auto operator<=>(const GeoSolarRadiationData &) const = default;
 

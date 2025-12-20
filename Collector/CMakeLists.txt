@@ -12,7 +12,7 @@ set(STATIC_LIBS soltrace_model SPALib)
 
 target_include_directories(${PROJECT_NAME} PUBLIC 
                            ${CMAKE_CURRENT_SOURCE_DIR}
-                           ${CMAKE_CURRENT_SOURCE_DIR}/../include 
+                           ${CMAKE_CURRENT_SOURCE_DIR}/../Include 
                           ${CMAKE_CURRENT_SOURCE_DIR}/../Modelling/Model
                           ${CMAKE_CURRENT_SOURCE_DIR}/../Modelling/SolTrace/coretrace
                           ${CMAKE_CURRENT_SOURCE_DIR}/../Tracking-Algorithm/SPALibs

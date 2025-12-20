@@ -1,5 +1,8 @@
 #ifndef __MATERIALSPROPERTIES_H__
 #define __MATERIALSPROPERTIES_H__
+#include <regex>
+#include <iostream>
+#include <vector>
 #include "ConfigParser.hpp"
 
 struct Material

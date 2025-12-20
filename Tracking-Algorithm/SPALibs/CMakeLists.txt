@@ -16,7 +16,7 @@ add_library(${PROJECT_NAME} STATIC
 # add include file
 target_include_directories(${PROJECT_NAME} PUBLIC
                                             ${CMAKE_CURRENT_SOURCE_DIR}               				# Current directory (.)
-                                            ${CMAKE_CURRENT_SOURCE_DIR}/../../include	# Sensor include directory (../)
+                                            ${CMAKE_CURRENT_SOURCE_DIR}/../../Include	# Sensor include directory (../)
                                             ${CMAKE_CURRENT_SOURCE_DIR}/../solar-tracker/app/spa/ 		# Parent directory (../)
                             )
 

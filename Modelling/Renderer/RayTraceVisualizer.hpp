@@ -67,8 +67,8 @@ private:
     // std::vector<std::vector<double>> d_x, d_y, d_z;
     // createRegularGrid(plots.x, plots.y, plots.z, 100, d_x, d_y, d_z);
     std::string fName = filename + "_dish_surfaceflux.png";
-    int plot_num = 1;
-    const int plot_size = dish_plots.size();
+    long plot_num = 1;
+    const long plot_size = dish_plots.size();
 
     plt::figure_size(1920, 640);
     plt::suptitle("Dish Surface Reflection");
@@ -305,7 +305,7 @@ private:
       const auto &sun_y = sun_cord.Sun_y;
       const auto &sun_z = sun_cord.Sun_z;
 
-      for (size_t i = 0; i < plot_count; ++i)
+      for (int i = 0; i < plot_count; ++i)
       {
         if (i >= max_line && max_line > 0)
           break;
@@ -489,7 +489,7 @@ public:
         dish_x_positions.push_back(x_positions[i] + offset);
       }
 
-      plt::bar(dish_x_positions, dish_values, colors[color_index % colors.size()].first, "-", 0.25, {{"label", dish}});
+      plt::bar(dish_x_positions, dish_values, colors[color_index % color_size].first, "-", 0.25, {{"label", dish}});
       ++dish_index;
       ++color_index;
     }

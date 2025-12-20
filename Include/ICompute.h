@@ -1,4 +1,5 @@
 #pragma once
+#include "ISensor.h"
 
 /*************************** SPA USER INPUT DATA ***************************************/
 struct SPA_Input

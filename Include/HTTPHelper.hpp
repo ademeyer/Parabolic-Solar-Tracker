@@ -1,7 +1,7 @@
 #ifndef __HTTPClient_H__
 #define __HTTPClient_H__
 
-#include <bits/stdc++.h>
+#include <vector>
 #include <iomanip>
 #include <curl/curl.h>
 #include "json.hpp"

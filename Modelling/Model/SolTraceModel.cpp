@@ -145,7 +145,7 @@ void SolTraceModel::processResult(const double &lat,
 
   auto &flxmp = results.FluxMap;
 
-  for (size_t i = 0; i < Length; i++)
+  for (int i = 0; i < Length; i++)
   {
     flxmp[Sm[i]].push_back(RayMap(Xi[i], Yi[i], Zi[i],
                                   Xc[i], Yc[i], Zc[i],

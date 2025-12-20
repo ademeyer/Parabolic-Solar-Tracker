@@ -94,6 +94,8 @@ Uses SolTrace for detailed ray path simulations, providing flux maps and interce
 
 ```sh
 # Clone or navigate to the project root
+git clone https://github.com/ademeyer/Parabolic-Solar-Tracker.git
+git submodule update --init --recursive
 cd /Parabolic-Solar-Tracker
 
 # Create build directory

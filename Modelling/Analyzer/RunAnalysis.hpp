@@ -1,5 +1,6 @@
 #pragma once
 #include <map>
+#include <regex>
 #include "Collector.hpp"
 #include "RayTraceVisualizer.hpp"
 #include "SolarDatabaseManager.h"

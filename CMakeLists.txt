@@ -34,12 +34,13 @@ endif()
 if(BUILD_PLATE_TEST OR BUILD_RUNNER_APP)
   add_subdirectory(Modelling)
   add_subdirectory(Collector)
+  add_subdirectory(Include)
 endif()
 
 add_subdirectory(src)
 
 # Print configuration summary
-message(STATUS "Build configuration:")
+message(STATUS "  Build configuration:")
 message(STATUS "  Build Project SENSOR_APP: ${BUILD_SENSOR_APP}")
 message(STATUS "  Build Project API_APP: ${BUILD_API_APP}")
 message(STATUS "  Build Project DB_APP: ${BUILD_DB_APP}")
