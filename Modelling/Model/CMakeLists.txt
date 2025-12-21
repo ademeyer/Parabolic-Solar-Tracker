@@ -12,6 +12,7 @@ add_library(${PROJECT_NAME} STATIC SolTraceModel.cpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC 
                            ${CMAKE_CURRENT_SOURCE_DIR}
+                           ${CMAKE_CURRENT_SOURCE_DIR}/../../Include
                             ${CMAKE_CURRENT_SOURCE_DIR}/../../Include/External/SolTrace/coretrace
                             )
 

@@ -4,27 +4,32 @@
 #include <vector>
 #include <map>
 #include <iostream>
+#include "Point.h"
 #include "../../Include/External/SolTrace/coretrace/stapi.h"
 #define RAY_NUM_MAX 500000
 
 /* Struct to hold Ray Trace Result */
-struct RayMap
+struct Ray
 {
   int ElementMap, RayNumber;
-  double X, Y, Z, Xcos, Ycos, Zcos;
-  RayMap(const double &x, const double &y, const double &z,
-         const double &xcos, const double &ycos, const double &zcos,
-         const int &elemap, const int &raynum)
-      : X(x), Y(y), Z(z), Xcos(xcos), Ycos(ycos), Zcos(zcos),
+  Point3f XYZ, XYZcos; // XYZ = (X,Y,Z), XYZcos = (Xcos,Ycos,Zcos)
+  Ray(const double &x, const double &y, const double &z,
+      const double &xcos, const double &ycos, const double &zcos,
+      const int &elemap, const int &raynum)
+      : XYZ(Point3f(x, y, z)), XYZcos(Point3f(xcos, ycos, zcos)),
+        ElementMap(elemap), RayNumber(raynum) {}
+  Ray(const Point3f &xyz, const Point3f &xyzcos,
+      const int &elemap, const int &raynum)
+      : XYZ(xyz), XYZcos(xyzcos),
         ElementMap(elemap), RayNumber(raynum) {}
 };
 
 struct RayTraceResult
 {
   int SunRayCount, Length;
-  double SunXmin, SunXmax, SunYmin, SunYmax;
-  double Sun_x, Sun_y, Sun_z;
-  std::map<int, std::vector<RayMap>> FluxMap; // stage_id, RayMap
+  Point2f SunMin, SunMax;                  // SunMin(Xmin,Ymin), SunMax(Xmax,Ymax)
+  Point3f SunXYZ;                          // Sun position (X,Y,Z)
+  std::map<int, std::vector<Ray>> FluxMap; // stage_id, RayMap
 };
 
 struct CollectorSpecs

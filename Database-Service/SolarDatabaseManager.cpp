@@ -1,6 +1,7 @@
 #pragma once
 #pragma warning(disable : 4996)
 #include <algorithm>
+#include <iostream>
 #include "SolarDatabaseManager.h"
 
 SolarDatabaseManager::SolarDatabaseManager(const std::string &path) : m_DB_path(path)

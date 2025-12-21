@@ -127,15 +127,12 @@ void SolTraceModel::processResult(const double &lat,
   std::cout << "sun position in soltrace coordinate system[x, y, z]: "
             << sun_x << ", " << sun_y << ", " << sun_z << std::endl;
 
-  results.SunXmax = SunXMax;
-  results.SunXmin = SunXMin;
-  results.SunYmax = SunYMax;
-  results.SunYmin = SunYMin;
+  results.SunMax = Point2f(SunXMax, SunYMax);
+  results.SunMin = Point2f(SunXMin, SunYMin);
+  results.SunXYZ = Point3f(sun_x, sun_y, sun_z);
+
   results.Length = Length;
   results.SunRayCount = SunRayCount;
-  results.Sun_x = sun_x;
-  results.Sun_y = sun_y;
-  results.Sun_z = sun_z;
 
   st_locations(m_stContext, Xi, Yi, Zi);
   st_cosines(m_stContext, Xc, Yc, Zc);
@@ -147,14 +144,15 @@ void SolTraceModel::processResult(const double &lat,
 
   for (int i = 0; i < Length; i++)
   {
-    flxmp[Sm[i]].push_back(RayMap(Xi[i], Yi[i], Zi[i],
-                                  Xc[i], Yc[i], Zc[i],
-                                  Em[i], Rn[i]));
+    flxmp[Sm[i]].push_back(Ray(Xi[i], Yi[i], Zi[i],
+                               Xc[i], Yc[i], Zc[i],
+                               Em[i], Rn[i]));
   }
 
   std::cout << "Total intersections: " << Length << std::endl;
   std::cout << "Number of stages in context: " << flxmp.size() << std::endl;
   std::cout << "=== STAGE MAP DISTRIBUTION ===" << std::endl;
+
   for (const auto &[stage, map] : flxmp)
   {
     std::cout << "stage " << stage << ": Hits: " << map.size() << std::endl;

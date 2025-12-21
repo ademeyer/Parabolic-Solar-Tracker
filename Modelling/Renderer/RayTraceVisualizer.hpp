@@ -56,9 +56,10 @@ private:
           auto &dp = dish_plots[dish];
           for (const auto &ray : stage_flux)
           {
-            dp.x.push_back(ray.X);
-            dp.y.push_back(ray.Y);
-            dp.z.push_back(ray.Z);
+            const auto &[X, Y, Z] = ray.XYZ;
+            dp.x.push_back(X);
+            dp.y.push_back(Y);
+            dp.z.push_back(Z);
           }
         }
       }
@@ -114,7 +115,8 @@ private:
         { // Stage 2 - Receiver
           for (const auto &ray : stage_flux)
           {
-            auto mag = getMagititude(ray.X, ray.Y, ray.Z);
+            const auto &[X, Y, Z] = ray.XYZ;
+            auto mag = getMagititude(X, Y, Z);
             max_scale = std::max(max_scale, mag);
             min_scale = std::min(min_scale, mag);
           }
@@ -127,15 +129,16 @@ private:
         { // Stage 2 - Receiver
           for (const auto &ray : stage_flux)
           {
-            auto mag = getMagititude(ray.X, ray.Y, ray.Z);
+            const auto &[X, Y, Z] = ray.XYZ;
+            auto mag = getMagititude(X, Y, Z);
             auto idx = getColorScaleIndex(color_size, mag, max_scale, min_scale);
 
             auto &dp = data_point[dish];
 
             auto &x_container = dp[idx].first;
             auto &y_container = dp[idx].second;
-            x_container.push_back(ray.X);
-            y_container.push_back(ray.Y);
+            x_container.push_back(X);
+            y_container.push_back(Y);
           }
         }
       }
@@ -178,19 +181,22 @@ private:
 
     std::map<std::string, Plots> start, end, start_cos, end_cos;
 
-    auto fillStageMap = [](const std::vector<RayMap> &flxmap,
+    auto fillStageMap = [](const std::vector<Ray> &flxmap,
                            Plots &ray,
                            Plots &ray_cos)
     {
       for (const auto &rayMap : flxmap)
       {
-        ray_cos.x.push_back(rayMap.Xcos);
-        ray_cos.y.push_back(rayMap.Ycos);
-        ray_cos.z.push_back(rayMap.Zcos);
+        const auto &[X, Y, Z] = rayMap.XYZ;
+        const auto &[Xcos, Ycos, Zcos] = rayMap.XYZcos;
 
-        ray.x.push_back(rayMap.X);
-        ray.y.push_back(rayMap.Y);
-        ray.z.push_back(rayMap.Z);
+        ray_cos.x.push_back(Xcos);
+        ray_cos.y.push_back(Ycos);
+        ray_cos.z.push_back(Zcos);
+
+        ray.x.push_back(X);
+        ray.y.push_back(Y);
+        ray.z.push_back(Z);
       }
     };
 
@@ -301,9 +307,7 @@ private:
       const auto &dish = e_dish;
       auto &ray = ray_[dish];
       const auto &sun_cord = results.at(e_dish);
-      const auto &sun_x = sun_cord.Sun_x;
-      const auto &sun_y = sun_cord.Sun_y;
-      const auto &sun_z = sun_cord.Sun_z;
+      const auto &[sun_x, sun_y, sun_z] = sun_cord.SunXYZ;
 
       for (int i = 0; i < plot_count; ++i)
       {
