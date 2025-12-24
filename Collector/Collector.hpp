@@ -96,12 +96,11 @@ public:
 class Collector
 {
 protected:
+  std::unique_ptr<SolTraceModel> m_STraceModel = nullptr;
   std::unique_ptr<Material> m_AbsorberMaterial = nullptr;
   std::unique_ptr<Material> m_ReflectiveMaterial = nullptr;
   bool CollectorIsInitialized() const;
   Collector(const std::string &dish_material_name, const std::string &reactor_material_name);
-  Material GetAbsorberMaterial() const;
-  Material GetReflectiveMaterial() const;
   double temperature(const double &energy_rate, const double &emissivity, const double &area) const
   {
     /* using stefan boltzmann equation */
@@ -111,11 +110,13 @@ protected:
 public:
   virtual ~Collector() = default;
   virtual bool IsInitialized() const = 0;
+  virtual Material GetAbsorberMaterial() const;
+  virtual Material GetReflectiveMaterial() const;
   virtual RayTraceResult RunAnalysis(
       const GeoDateTimeData &dataTime,
       const GeoLocationData &gLocation,
       const GeoWeatherData &weather,
-      const GeoSolarRadiationData &solar_rad) const = 0;
+      const GeoSolarRadiationData &solar_rad) const;
 };
 
 class ParabolicDish : public Collector
@@ -128,17 +129,9 @@ public:
   ParabolicDish(const std::string &dish_material_name, const std::string &reactor_material_name,
                 const double &dish_diameter, const double &dish_depth, const double &reactor_width);
 
-  RayTraceResult RunAnalysis(const GeoDateTimeData &dataTime,
-                             const GeoLocationData &gLocation,
-                             const GeoWeatherData &weather,
-                             const GeoSolarRadiationData &solar_rad) const override;
-
   bool IsInitialized() const override;
-  Material GetReactorMaterial() const;
-  Material GetDishMaterial() const;
 
 private:
-  std::unique_ptr<SolTraceModel> m_STraceModel;
   std::unique_ptr<Dimension> m_DishDimension = nullptr;
   std::unique_ptr<Dimension> m_ReactorDimension = nullptr;
   double m_ReceiverDiameter;
@@ -156,15 +149,9 @@ public:
   FlatPlate(const std::string &surface_material_name, const std::string &absorber_material_name,
             const double &surface_width, const double &surface_length);
 
-  RayTraceResult RunAnalysis(const GeoDateTimeData &dataTime,
-                             const GeoLocationData &gLocation,
-                             const GeoWeatherData &weather,
-                             const GeoSolarRadiationData &solar_rad) const override;
-
   bool IsInitialized() const override;
 
 private:
-  std::unique_ptr<SolTraceModel> m_STraceModel;
   std::unique_ptr<Dimension> m_SurfaceDimension = nullptr;
   std::unique_ptr<Dimension> m_AbsorberDimension = nullptr;
   std::unique_ptr<ConductionLoss> m_ConductionLoss;

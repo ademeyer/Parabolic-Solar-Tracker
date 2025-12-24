@@ -38,6 +38,39 @@ Material Collector::GetReflectiveMaterial() const
   return *m_ReflectiveMaterial.get();
 }
 
+RayTraceResult Collector::RunAnalysis(const GeoDateTimeData &dateTime,
+                                      const GeoLocationData &gLocation,
+                                      const GeoWeatherData &weather,
+                                      const GeoSolarRadiationData &solar_rad) const
+{
+  if (!m_STraceModel)
+  {
+    std::cerr << "Ray tracer model not initialized!\n";
+    return {};
+  }
+  SPA_Input spa_in(dateTime, gLocation, weather);
+
+  auto spa_data = getSunPosition(&spa_in);
+  if (!spa_data)
+  {
+    std::cerr << "Invalid sun position data: Error: " << spa_data.errCode << std::endl;
+    return {};
+  }
+
+  /* Estimate ray number based on the amount of direct radiation received */
+  int ray_num = solar_rad.DNI * RAY_NUM_MAX / SOLAR_CONSTANT;
+
+  if (ray_num <= 0)
+    return {};
+
+  return m_STraceModel->RunAnalysis(spa_data.azimuth,
+                                    spa_data.elevation,
+                                    ray_num,
+                                    gLocation.Latitude,
+                                    dateTime.GetDecimalYear(),
+                                    dateTime.dt.time.hour);
+}
+
 /*************************************************************** End Collector() *********************************************************************/
 
 /*************************************************************** ParabolicDish() Definition *********************************************************************/
@@ -68,40 +101,10 @@ ParabolicDish::ParabolicDish(const std::string &dish_material_name, const std::s
   if (!dim)
     throw std::runtime_error("Downcasting Failed\n");
 
-  std::cout << "focal length: " << dim->GetFocalLength() << std::endl;
-
   std::vector<CollectorSpecs> specs = {
       CollectorSpecs("PabolarDish", dish_diameter, dish_diameter, m_ReflectiveMaterial->reflectivity, m_ReflectiveMaterial->absorptivity, 0.0, dim->GetFocalLength()),
       CollectorSpecs("ReactorPlate", reactor_width, reactor_length, m_AbsorberMaterial->reflectivity, m_AbsorberMaterial->absorptivity, 0.0, 0.0)};
   m_STraceModel = std::make_unique<SolTraceModel>(specs);
-}
-
-RayTraceResult ParabolicDish::RunAnalysis(const GeoDateTimeData &dateTime,
-                                          const GeoLocationData &gLocation,
-                                          const GeoWeatherData &weather,
-                                          const GeoSolarRadiationData &solar_rad) const
-{
-  SPA_Input spa_in(dateTime, gLocation, weather);
-
-  auto spa_data = getSunPosition(&spa_in);
-  if (!spa_data)
-  {
-    std::cerr << "Invalid sun position data: Error: " << spa_data.errCode << std::endl;
-    return {};
-  }
-
-  /* Estimate ray number based on the amount of direct radiation received */
-  int ray_num = solar_rad.DNI * RAY_NUM_MAX / SOLAR_CONSTANT;
-
-  if (ray_num <= 0)
-    return {};
-
-  return m_STraceModel->RunAnalysis(spa_data.azimuth,
-                                    spa_data.elevation,
-                                    ray_num,
-                                    gLocation.Latitude,
-                                    dateTime.GetDecimalYear(),
-                                    dateTime.dt.time.hour);
 }
 
 ParabolicDish::ParabolicDish(const std::string &dish_material_name, const std::string &reactor_material_name,
@@ -114,10 +117,6 @@ bool ParabolicDish::IsInitialized() const
 {
   return (m_STraceModel && m_DishDimension && m_ReactorDimension && m_ConvectiveLoss && Collector::CollectorIsInitialized());
 }
-
-Material ParabolicDish::GetReactorMaterial() const { return Collector::GetAbsorberMaterial(); }
-
-Material ParabolicDish::GetDishMaterial() const { return Collector::GetReflectiveMaterial(); }
 
 /*************************************************************** End ParabolicDish() *********************************************************************/
 
@@ -151,34 +150,6 @@ FlatPlate::FlatPlate(const std::string &surface_material_name, const std::string
                      const double &surface_width, const double &surface_length)
     : FlatPlate(surface_material_name, absorber_material_name, surface_width, surface_length,
                 surface_width, surface_length) {}
-
-RayTraceResult FlatPlate::RunAnalysis(const GeoDateTimeData &dateTime,
-                                      const GeoLocationData &gLocation,
-                                      const GeoWeatherData &weather,
-                                      const GeoSolarRadiationData &solar_rad) const
-{
-  SPA_Input spa_in(dateTime, gLocation, weather);
-
-  auto spa_data = getSunPosition(&spa_in);
-  if (!spa_data)
-  {
-    std::cerr << "Invalid sun position data: Error: " << spa_data.errCode << std::endl;
-    return {};
-  }
-
-  /* Estimate ray number based on the amount of direct radiation received */
-  int ray_num = solar_rad.DNI * RAY_NUM_MAX / SOLAR_CONSTANT;
-
-  if (ray_num <= 0)
-    return {};
-
-  return m_STraceModel->RunAnalysis(spa_data.azimuth,
-                                    spa_data.elevation,
-                                    ray_num,
-                                    gLocation.Latitude,
-                                    dateTime.GetDecimalYear(),
-                                    dateTime.dt.time.hour);
-}
 
 bool FlatPlate::IsInitialized() const
 {
