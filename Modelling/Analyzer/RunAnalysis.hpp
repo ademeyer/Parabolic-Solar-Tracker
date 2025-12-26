@@ -170,8 +170,7 @@ public:
             auto result = c->RunAnalysis(dateTime, gLoc, avg_weather, avg_solar);
             ray_results[col.first] = result;
 
-            auto pdc = dynamic_cast<ParabolicDish *>(c.get());
-            auto receiverMaterial = pdc->GetReactorMaterial();
+            auto receiverMaterial = c->GetAbsorberMaterial();
             efficiency[col.first].push_back(GetOpticalEfficiencyFromRayResult(result, receiverMaterial.absorptivity));
           }
         }
