@@ -1,6 +1,28 @@
 #include "Collector.hpp"
 #include "RayTraceVisualizer.hpp"
 
+double GetOpticalEfficiencyFromRayResult(const RayTraceResult &ray_result,
+                                         const double &absorptivity = 1)
+{
+  const int dish_id = 1, receiver_id = 2;
+  int Nr = 0, Nd = 0;
+
+  for (const auto &[id, flxmap] : ray_result.FluxMap)
+  {
+    if (id == dish_id)
+      Nd = flxmap.size();
+    else if (id == receiver_id)
+      Nr = flxmap.size();
+  }
+
+  if (Nd == 0)
+  {
+    std::cerr << "Dish Ray Hits can not be zero\n";
+    return 0.0;
+  }
+  return static_cast<double>((Nr / (double)Nd) * 100 * absorptivity);
+}
+
 void printThermalProps(const RayTraceResult &thp)
 {
   std::cout << "SunMin: " << thp.SunMin.X << ", " << thp.SunMin.Y << " [X, Y]" << std::endl;
@@ -11,17 +33,21 @@ void printThermalProps(const RayTraceResult &thp)
   for (const auto &[stage_id, flxmap] : thp.FluxMap)
   {
     std::cout << "================================================== stage id " << stage_id << ": " << flxmap.size() << " ==================================================\n";
-    std::cout << "Xi\tYi\tZi\tXcos\tYcos\tZcos\tElementMap\tRayNumber" << std::endl;
-    for (const auto &mp : flxmap)
-    {
-      const auto &[X, Y, Z] = mp.XYZ;
-      const auto &[Xcos, Ycos, Zcos] = mp.XYZcos;
-      std::cout << X << "," << Y << "," << Z << "," << Xcos << "," << Ycos << ","
-                << Zcos << "," << mp.ElementMap << "," << mp.RayNumber << "\n";
-    }
+    // std::cout << "Xi\tYi\tZi\tXcos\tYcos\tZcos\tElementMap\tRayNumber" << std::endl;
+    // for (const auto &mp : flxmap)
+    // {
+    //   const auto &[X, Y, Z] = mp.XYZ;
+    //   const auto &[Xcos, Ycos, Zcos] = mp.XYZcos;
+    //   std::cout << X << "," << Y << "," << Z << "," << Xcos << "," << Ycos << ","
+    //             << Zcos << "," << mp.ElementMap << "," << mp.RayNumber << "\n";
+    // }
   }
   std::cout << std::endl;
 }
+
+/*
+
+*/
 
 int main()
 {
@@ -40,9 +66,10 @@ int main()
   specs.emplace_back(std::string("Flat-3"), std::make_unique<FlatPlate>("Iron-Glass", "Iron-Glass", 2.00, 1.50));
 
   std::map<std::string, RayTraceResult> ray_results;
+  std::map<std::string, std::vector<double>> eff;
   for (const auto &col : specs)
   {
-    auto &c = col.second;
+    const auto &c = col.second;
     if (!c->IsInitialized())
     {
       std::cerr << col.first << " is not initialized\n";
@@ -51,12 +78,16 @@ int main()
 
     {
       std::cout << "=========== " << col.first << " thermal properties ===========\n";
-      auto result = c->RunAnalysis(dateTime, location, weather, solar);
+      const auto result = c->RunAnalysis(dateTime, location, weather, solar);
       printThermalProps(result);
       ray_results[col.first] = result;
+      const auto &absorberMat = c->GetAbsorberMaterial();
+      auto &e = eff[col.first];
+      e.push_back(GetOpticalEfficiencyFromRayResult(result, absorberMat.absorptivity));
     }
   }
   RayPathVisualizer::Plot3DRayPaths(ray_results, "single_loc");
+  ValueVisualizer::PlotValueOnBarGraph(eff, {"12.00PM"}, "test");
   std::cout << std::endl;
   return 0;
 }
