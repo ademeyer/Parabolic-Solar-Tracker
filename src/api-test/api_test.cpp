@@ -1,3 +1,4 @@
+#include <iostream>
 #include "GeoLocationServiceSIM.hpp"
 #include "GeoDateTimeServiceSIM.hpp"
 #include "GeoWeatherServiceSIM.hpp"
@@ -157,17 +158,5 @@ int main()
     }
   }
   std::cout << "**************************************************************************************************************" << std::endl;
-
-  // MaterialProperties mp;
-  // Material mat;
-  // if (mp.FetchMaterial("Copper", mat))
-  // {
-  //   std::cout << "Material Property\nName: "
-  //             << mat.name << "\nMelting Point: "
-  //             << mat.melting_point << "\nMax Operating Temp: "
-  //             << mat.max_operating_temp << "\nEmissivity: "
-  //             << mat.emissivity << "\nAbsorptivity: "
-  //             << mat.absorptivity << std::endl;
-  // }
   return 0;
 }
