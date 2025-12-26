@@ -70,8 +70,10 @@ private:
     std::string fName = filename + "_dish_surfaceflux.png";
     long plot_num = 1;
     const long plot_size = dish_plots.size();
+    const long w = plot_size * 430;
+    const long h = 480;
 
-    plt::figure_size(1920, 640);
+    plt::figure_size(w, h);
     plt::suptitle("Dish Surface Reflection");
 
     for (const auto &[dish, plots] : dish_plots)
@@ -149,7 +151,7 @@ private:
       return;
 
     int plot_num = 1;
-    const long w = plot_size * 720, h = plot_size * 240;
+    const long w = plot_size * 430, h = 480;
     std::string fName = filename + "_receiver_surfaceflux.png";
     plt::figure_size(w, h);
     plt::suptitle("Receiver Flux Distribution");
@@ -157,11 +159,9 @@ private:
     for (const auto &[dish, dp] : data_point)
     {
       plt::subplot(1, plot_size, plot_num);
-      for (size_t i = 0; i < dp.size(); ++i)
-      {
-        auto &p = dp.at(i);
-        plt::scatter(p.first, p.second, 1.0, {{"c", colors[i].first}});
-      }
+      for (const auto &[col, p] : dp)
+        plt::scatter(p.first, p.second, 1.0, {{"c", colors[col].first}});
+
       plt::title(dish, {{"loc", "left"}});
       plt::xlabel("x-axis(m)");
       plt::ylabel("y-axis(m)");
@@ -341,7 +341,7 @@ private:
       if (plot_size == 0)
         return;
 
-      const long w = plot_size * 620, h = plot_size * 180;
+      const long w = plot_size * 320, h = 480;
       int plot_num = 1;
       plt::figure_size(w, h);
 
@@ -366,8 +366,9 @@ private:
       if (plot_size == 0)
         return;
 
-      const long w = plot_size * 620, h = plot_size * 180;
       int plot_num = 1;
+      const long w = plot_size * 320, h = 480;
+
       plt::figure_size(w, h);
 
       std::string fName = filename + "sun-dish_raytrace.png";
@@ -469,7 +470,7 @@ public:
       }
     }
 
-    const double bar_width = 2.5 / value_size; // Dynamic width based on number of dishes
+    const double bar_width = 4.8 / value_size; // Dynamic width based on number of dishes
     std::vector<double> x_positions(label_interval);
 
     for (size_t i = 0; i < label_interval; ++i)
@@ -493,7 +494,7 @@ public:
         dish_x_positions.push_back(x_positions[i] + offset);
       }
 
-      plt::bar(dish_x_positions, dish_values, colors[color_index % color_size].first, "-", 0.25, {{"label", dish}});
+      plt::bar(dish_x_positions, dish_values, colors[color_index % color_size].first, "-", 0.5, {{"label", dish}});
       ++dish_index;
       ++color_index;
     }
