@@ -16,7 +16,9 @@ public:
   template <typename T>
   bool Insert(const T &db_data) const;
   int GetLocationIdWithName(const std::string &location_name);
-  std::unordered_map<std::string, dBCommon::DBLoggedData> GetDailyDBLoggedData(const std::string &datestr);
+  std::unordered_map<std::string, dBCommon::DBLoggedData> GetDBLoggedData(const std::string &start_datestr,
+                                                                          const std::string &end_datestr = "",
+                                                                          const std::string &loc_name = "%");
 
 private:
   std::string m_DB_path;

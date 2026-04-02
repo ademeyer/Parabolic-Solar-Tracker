@@ -67,9 +67,26 @@ int SolarDatabaseManager::GetLocationIdWithName(const std::string &location_name
   return loc_id;
 }
 
-std::unordered_map<std::string, dBCommon::DBLoggedData> SolarDatabaseManager::GetDailyDBLoggedData(const std::string &datestr)
+std::unordered_map<std::string, dBCommon::DBLoggedData> SolarDatabaseManager::GetDBLoggedData(const std::string &start_datestr,
+                                                                                              const std::string &end_datestr,
+                                                                                              const std::string &loc_name)
 {
-  auto &sql = dBCommon::RetrieveDailyLoggedData;
+  // Input processing
+  /* Start date and loc_name can not be empty */
+  if (start_datestr.empty() || loc_name.empty())
+    return {};
+
+  /* If end start is empty, use current date info */
+  auto end_date = end_datestr;
+  if (end_datestr.empty())
+  {
+    std::time_t now = std::time(nullptr);
+    std::tm *ltm = std::localtime(&now);
+    auto now_date = DateTime(*ltm);
+    end_date = now_date.c_str();
+  }
+
+  auto &sql = dBCommon::RetrieveLoggedData;
   sqlite3_stmt *stmt;
   if (sqlite3_prepare_v2(m_DB, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
   {
@@ -78,15 +95,21 @@ std::unordered_map<std::string, dBCommon::DBLoggedData> SolarDatabaseManager::Ge
   }
 
   // Bind parameters
-  bool success = true;
-  for (int i = 1; (i <= 2 && success); ++i)
-    success = sqlite3_bind_text(stmt, i, datestr.c_str(), -1, SQLITE_STATIC) == SQLITE_OK;
-
-  if (!success)
   {
-    std::cerr << "Failed to bind text: " << sqlite3_errmsg(m_DB) << std::endl;
-    sqlite3_finalize(stmt);
-    return {};
+    bool success = true;
+    int i = 1;
+    for (const auto &bind_str : {start_datestr, end_date, start_datestr, end_date, loc_name})
+    {
+      success &= (sqlite3_bind_text(stmt, i, bind_str.c_str(), -1, SQLITE_STATIC) == SQLITE_OK);
+      ++i;
+    }
+
+    if (!success)
+    {
+      std::cerr << "Failed to bind text: " << sqlite3_errmsg(m_DB) << std::endl;
+      sqlite3_finalize(stmt);
+      return {};
+    }
   }
 
   using namespace dBCommon;

@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS )" + SolarRadiationTableName +
 );
 )";
 
-  static const std::string RetrieveDailyLoggedData = R"(
+  static const std::string RetrieveLoggedData = R"(
         SELECT 
             l.name AS location_name,
             l.latitude,
@@ -78,11 +78,13 @@ CREATE TABLE IF NOT EXISTS )" + SolarRadiationTableName +
             s.logged_at AS radiation_logged_at
         FROM locations l
         LEFT JOIN weather_data w ON l.location_id = w.location_id 
-            AND date(w.logged_at) = ?
+            AND date(w.logged_at) BETWEEN ? AND ?
         LEFT JOIN solar_radiation s ON l.location_id = s.location_id 
-            AND date(s.logged_at) = ?
-        WHERE (w.weather_id IS NOT NULL OR s.radiation_id IS NOT NULL)
+            AND date(s.logged_at) BETWEEN ? AND ?
+        WHERE l.name LIKE ? 
+          AND (w.weather_id IS NOT NULL OR s.radiation_id IS NOT NULL)
         ORDER BY l.location_id, w.logged_at, s.logged_at;
+
 )";
 
   const std::string InsertLocationTableSQL = "INSERT OR IGNORE INTO " + LocationTableName +
