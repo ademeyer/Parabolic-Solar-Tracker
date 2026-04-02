@@ -185,6 +185,47 @@ struct Date
   int day;
   auto operator<=>(const Date &) const = default;
   constexpr operator bool() const { return !(year <= -1 && month <= -1 && day <= -1); }
+  bool isLeapYear() const { return (year % 4 == 0) || (year % 100 != 0) || (year % 400 == 0); }
+
+  // Helper to get days in a month (respects leap years)
+  constexpr int daysInMonth()
+  {
+    constexpr std::array<int, 12> days = {31, 28, 31, 30, 31, 30,
+                                          31, 31, 30, 31, 30, 31};
+    if (month < 1 || month > 12)
+      throw std::invalid_argument("Invalid month");
+    if (month == 2 && isLeapYear())
+      return 29;
+    return days[month - 1];
+  }
+
+  // Pre‑increment: ++date
+  Date &operator++()
+  {
+    if (day < daysInMonth())
+    {
+      ++day;
+    }
+    else
+    {
+      day = 1;
+      if (++month > 12)
+      {
+        month = 1;
+        ++year;
+      }
+    }
+    return *this;
+  }
+
+  // Post‑increment: date++
+  Date operator++(int)
+  {
+    Date temp = *this;
+    ++(*this); // reuse pre‑increment
+    return temp;
+  }
+
   const char *c_str() const
   {
     static thread_local std::string str;
@@ -195,6 +236,7 @@ struct Date
     str = cstream.str();
     return str.c_str();
   }
+
   Date() : year(-1), month(-1), day(-1) {}
   Date(const int &y, const int &m, const int &d) : year(y), month(m), day(d) {}
 };
@@ -205,21 +247,8 @@ struct DateTime
   Time time;
   auto operator<=>(const DateTime &) const = default;
   constexpr operator bool() const { return (date && time); }
-  bool isLeapYear() const { return (date.year % 4 == 0) || (date.year % 100 != 0) || (date.year % 400 == 0); }
-  int GetDaysInYear() const { return isLeapYear() ? 366 : 365; }
-  int GetDayOfYear() const
-  {
-    static constexpr std::array<int, 13> daysInMonth = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-    int dayOfYear = date.day;
-
-    for (int i = 1; i < date.month; ++i)
-      dayOfYear += daysInMonth[i];
-
-    if (date.month > 2 && isLeapYear())
-      dayOfYear += 1;
-
-    return dayOfYear;
-  }
+  int GetDaysInYear() const { return date.isLeapYear() ? 366 : 365; }
+  int GetDayOfYear() { return date.daysInMonth(); }
 
   const char *c_str() const
   {
@@ -284,7 +313,7 @@ struct GeoDateTimeData
     // (TAI - UTC) = 37.0
     return (32.184 + 37.0 - GetDelta_UT1());
   }
-  double GetDecimalYear() const
+  double GetDecimalYear()
   {
     return static_cast<double>(dt.date.year + (dt.GetDayOfYear() + 1) / 365.0);
   }
