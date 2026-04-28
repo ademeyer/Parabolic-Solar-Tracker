@@ -1,77 +1,91 @@
+#include <algorithm>
 #include "Collector.hpp"
 
+#define R_EARTH 6371000.0 // Earth radius in meters
 /*************************************************************** Collector() Definition *********************************************************************/
-// WGS84 ellipsoid constants
-static const double WGS84_A = 6378137.0;         // semi-major axis [m]
-static const double WGS84_E2 = 6.69437999014e-3; // first eccentricity squared
 
-/**
- * Convert geodetic coordinates (latitude, longitude, altitude) to ECEF Cartesian coordinates.
- *
- * @param lat Latitude in degrees
- * @param lon Longitude in degrees
- * @param alt Altitude above ellipsoid in meters
- * @param x Reference to output X coordinate (meters)
- * @param y Reference to output Y coordinate (meters)
- * @param z Reference to output Z coordinate (meters)
- */
-static Point3f geodeticToEcef(double lat, double lon, double alt)
-{
-  lat = deg2rad(lat);
-  lon = deg2rad(lon);
-  double sinLat = std::sin(lat);
-  double cosLat = std::cos(lat);
-  double sinLon = std::sin(lon);
-  double cosLon = std::cos(lon);
-
-  double N = WGS84_A / std::sqrt(1.0 - WGS84_E2 * sinLat * sinLat);
-
-  double x = (N + alt) * cosLat * cosLon;
-  double y = (N + alt) * cosLat * sinLon;
-  double z = (N * (1.0 - WGS84_E2) + alt) * sinLat;
-
-  return Point3f(x, y, z);
-}
-
-static Point3f sunPosTo3DCartesian(const double &az, const double el)
+static Point3f sunToAimVector(const double &az, const double el)
 {
   const auto az_rad = deg2rad(az);
   const auto el_rad = deg2rad(el);
-  return Point3f(std::cos(el_rad) * std::sin(az_rad), // East
-                 std::cos(el_rad) * std::cos(az_rad), // North
-                 std::sin(el_rad));                   // Up /Zenith
+  return Point3f(-std::cos(el_rad) * std::sin(az_rad),  // East: +X
+                 std::sin(el_rad),                      // Up / Zenith: +Y
+                 -std::cos(el_rad) * std::cos(az_rad)); // South: +Z
 }
 
-static Point3f geodaticTo3DCartesian(const double &lat, const double lon)
+/**
+ * @brief Converts latitude/longitude/altitude to geocentric Cartesian coordinates (meters).
+ *        Computes local orthonormal basis vectors (East, North, Up) at the reference point.
+ *        Transforms an arbitrary geocentric point into local (East, Up, South) coordinates.
+ *
+ * @param lat
+ * @param lon
+ * @param alt
+ * @return Point3f
+ */
+static Point3f geodeticToGeocentric(double lat, double lon, double alt = 0.0)
 {
-  const auto lat_rad = deg2rad(lat);
-  const auto lon_rad = deg2rad(lon);
-  return Point3f(std::cos(lat_rad) * std::cos(lon_rad), // East
-                 std::cos(lat_rad) * std::sin(lon_rad), // North
-                 std::sin(lat_rad));                    // Up / Zenith
+  double lat_rad = deg2rad(lat);
+  double lon_rad = deg2rad(lon);
+  double cos_lat = std::cos(lat_rad);
+  double sin_lat = std::sin(lat_rad);
+  double N = R_EARTH; // simplified: no ellipsoid flattening
+  double r = (N + alt) * cos_lat;
+  return Point3f(r * std::cos(lon_rad),
+                 r * std::sin(lon_rad),
+                 (N + alt) * sin_lat);
 }
 
-static void transformXYZToSolTrace(Point3f &coord)
+/**
+ * @brief Compute local orthonormal basis (East, North, Up) at a reference geodetic point
+ *
+ * @param ref_lat
+ * @param ref_lon
+ * @param east
+ * @param north
+ * @param up
+ */
+static void computeLocalBasis(double ref_lat, double ref_lon, Point3f &east, Point3f &north, Point3f &up)
 {
-  /**
-   * @brief: Transformation description
-   * X = East       = -x (in soltrace)
-   * Y = North      = z (in soltrace)
-   * Z = Up/Zenith  = y (in soltrace)
-   *
-   * Example:
-   * Sun Az/El: 153.931°, 15.0188°
-   * Your computed: [0.424435, -0.867585, 0.259136] (ENU: +E, +N, +U)
-   * Expected SolTrace vector: [-0.424435, 0.259136, -0.867585]
-   */
-  coord = Point3f(-coord.X, coord.Z, coord.Y);
+  double lon_rad = deg2rad(ref_lon);
+  // East = (-sin(lon), cos(lon), 0) – unit vector
+  east = Point3f(-std::sin(lon_rad), std::cos(lon_rad), 0.0);
+
+  // Up = normalized geocentric position of reference point
+  Point3f ref_geo = geodeticToGeocentric(ref_lat, ref_lon, 0.0);
+  double len = std::sqrt(ref_geo.Dot(ref_geo));
+  up = Point3f(ref_geo.X / len, ref_geo.Y / len, ref_geo.Z / len);
+
+  // North = Up × East (cross product)
+  north.X = up.Y * east.Z - up.Z * east.Y;
+  north.Y = up.Z * east.X - up.X * east.Z;
+  north.Z = up.X * east.Y - up.Y * east.X;
 }
 
-static Point3f setOrigin(const double &lat, const double &lon, const double &alt = 0.0)
+/**
+ * @brief Get the SolTrace Dish Origin From Geodatic object. Get origin coordinates based in latitude and longitude of the collector
+ *
+ * @param lat
+ * @param lon
+ * @param alt
+ * @return Point3f
+ */
+static Point3f getSolTraceDishOriginFromGeodatic(const double &lat, const double &lon, const double &alt = 0.0)
 {
-  /* Get origin coordinates based in latitude and longitude of the collector */
-  auto origin = geodaticTo3DCartesian(lat, lon);
-  transformXYZToSolTrace(origin);
+  // Compute local basis
+  Point3f east, north, up;
+  computeLocalBasis(lat, lon, east, north, up);
+
+  // Reference geocentric position R (origin of local frame)
+  Point3f R = geodeticToGeocentric(lat, lon, alt);
+  // Dish vector from reference point to point 0,0,0
+  auto origin = Point3f(R.Dot(east), R.Dot(up), R.Dot(north));
+  std::cout << "before scaling to [x (east), y (up), z (north)]: [" << origin.X << "," << origin.Y << "," << origin.Z << "]\n";
+  /* clamp values using the earth radius for sanity:
+   0 - 1.0 over R_EARTH unit scale
+  */
+  origin /= R_EARTH;
+  /* X = East, Y = Up, Z = South */
   return origin;
 }
 
@@ -85,64 +99,65 @@ Collector::Collector(const std::string &dish_material_name,
   Material dishMat, reactorMat, insulMat;
   if (!matProp.FetchMaterial(dish_material_name, dishMat))
   {
-    std::cerr << "Reflector Material name not found in material.conf: " << dish_material_name << std::endl;
+    // std::cerr << "Reflector Material name not found in material.conf: " << dish_material_name << std::endl;
     return;
   }
   m_ReflectorMaterial = std::make_unique<Material>(dishMat);
 
   if (!matProp.FetchMaterial(reactor_material_name, reactorMat))
   {
-    std::cerr << "Absorber Material name not found in material.conf: " << reactor_material_name << std::endl;
+    // std::cerr << "Absorber Material name not found in material.conf: " << reactor_material_name << std::endl;
     return;
   }
   m_AbsorberMaterial = std::make_unique<Material>(reactorMat);
 
   if (!matProp.FetchMaterial(insulator_material_name, insulMat))
   {
-    std::cerr << "Insulator Material name not found in material.conf: " << insulator_material_name << std::endl;
+    // std::cerr << "Insulator Material name not found in material.conf: " << insulator_material_name << std::endl;
     return;
   }
   m_InsulatorMaterial = std::make_unique<Material>(insulMat);
 
   /* Initialized collector origin base on actual geo location [if provided]*/
   if (col_origin)
-    m_Origin = setOrigin(col_origin.Latitude, col_origin.Longitude, col_origin.Altitude);
+    m_Origin = getSolTraceDishOriginFromGeodatic(col_origin.Latitude, col_origin.Longitude, col_origin.Altitude);
+  else
+    m_Origin = Point3f(0, 0, 0);
 }
 
 Collector::Collector() : Collector("", "", "", {}) {}
 
-Collector::Collector(const Collector &other)
-    : m_AbsorberMaterial(other.m_AbsorberMaterial ? std::make_unique<Material>(*other.m_AbsorberMaterial) : nullptr),
-      m_ReflectorMaterial(other.m_ReflectorMaterial ? std::make_unique<Material>(*other.m_ReflectorMaterial) : nullptr),
-      m_InsulatorMaterial(other.m_InsulatorMaterial ? std::make_unique<Material>(*other.m_InsulatorMaterial) : nullptr),
-      m_Origin(other.m_Origin)
+Collector::Collector(const Collector &rhs)
+    : m_StraceModel(rhs.m_StraceModel ? std::make_shared<SolTraceModel>(*rhs.m_StraceModel) : nullptr),
+      m_AbsorberMaterial(rhs.m_AbsorberMaterial ? std::make_unique<Material>(*rhs.m_AbsorberMaterial) : nullptr),
+      m_ReflectorMaterial(rhs.m_ReflectorMaterial ? std::make_unique<Material>(*rhs.m_ReflectorMaterial) : nullptr),
+      m_InsulatorMaterial(rhs.m_InsulatorMaterial ? std::make_unique<Material>(*rhs.m_InsulatorMaterial) : nullptr),
+      m_Origin(rhs.m_Origin) {}
+
+void swap(Collector &lhs, Collector &rhs) noexcept
 {
-}
-
-Collector &Collector::operator=(const Collector &other)
-{
-  if (this == &other)
-    return *this;
-
-  m_AbsorberMaterial = other.m_AbsorberMaterial ? std::make_unique<Material>(*other.m_AbsorberMaterial) : nullptr;
-  m_ReflectorMaterial = other.m_ReflectorMaterial ? std::make_unique<Material>(*other.m_ReflectorMaterial) : nullptr;
-  m_InsulatorMaterial = other.m_InsulatorMaterial ? std::make_unique<Material>(*other.m_InsulatorMaterial) : nullptr;
-  m_Origin = other.m_Origin;
-
-  return *this;
+  using std::swap;
+  swap(lhs.m_StraceModel, rhs.m_StraceModel);
+  swap(lhs.m_AbsorberMaterial, rhs.m_AbsorberMaterial);
+  swap(lhs.m_ReflectorMaterial, rhs.m_ReflectorMaterial);
+  swap(lhs.m_InsulatorMaterial, rhs.m_InsulatorMaterial);
+  swap(lhs.m_Origin, rhs.m_Origin);
 }
 
 void Collector::UpdateCollectorOrigin(const GeoLocationData &col_origin)
 {
   if (col_origin && m_StraceModel)
   {
-    m_Origin = setOrigin(col_origin.Latitude, col_origin.Longitude, col_origin.Altitude);
-    m_StraceModel->UpdateDishOrigin(m_Origin);
-    std::cout << "Collector origin updated to [x,y,z]: [" << m_Origin.X << "," << m_Origin.Y << "," << m_Origin.Z << "]\n";
+    m_Origin = getSolTraceDishOriginFromGeodatic(col_origin.Latitude, col_origin.Longitude, col_origin.Altitude);
+    m_StraceModel->UpdateDishOriginAndAim(m_Origin);
+    std::cout << "Collector origin updated to [x (east), y (up), z (north)]: [" << m_Origin.X << "," << m_Origin.Y << "," << m_Origin.Z << "]\n";
   }
   else
   {
-    std::cerr << "Invalid GeoLocationData provided for collector origin update\n";
+    if (!col_origin)
+      std::cerr << "Invalid GeoLocationData provided for collector origin update\n";
+    else
+      std::cerr << "Ray tracer model not initialized, cannot update collector origin\n";
   }
 }
 
@@ -201,8 +216,8 @@ RayTraceResult Collector::RunAnalysis(const GeoDateTimeData &dateTime,
   if (ray_num <= 0)
     return {};
 
-  auto sun_pos = sunPosTo3DCartesian(spa_data.azimuth,
-                                     spa_data.elevation);
+  auto sun_pos = sunToAimVector(spa_data.azimuth,
+                                spa_data.elevation);
   return m_StraceModel->RunAnalysis(sun_pos, ray_num);
 }
 
@@ -224,29 +239,55 @@ ParabolicDish::ParabolicDish(const std::string &dish_material_name, const std::s
   reactor_length == 0 ? m_ReactorDimension = std::make_unique<Parabola>(reactor_width) // circular
                       : m_ReactorDimension = std::make_unique<FlatSurface>(reactor_width, reactor_length);
 
-  m_ReflectorMaterial->DumpInfo();
-  m_AbsorberMaterial->DumpInfo();
-  m_InsulatorMaterial->DumpInfo();
+  // m_ReflectorMaterial->DumpInfo();
+  // m_AbsorberMaterial->DumpInfo();
+  // m_InsulatorMaterial->DumpInfo();
+
   // Initialize SolTrace Model
   auto dim = dynamic_cast<Parabola *>(m_DishDimension.get());
   if (!dim)
     throw std::runtime_error("Downcasting Failed\n");
 
   CollectorSpecs specs = CollectorSpecs(
-      dim->GetFocalLength(), m_Origin, Point3f(0.0, 1.0, 0.0), // Let soltrace determine the aim direction based on the sun position and collector orientation
+      dim->GetFocalLength(), m_Origin, Point3f(0, 0, 1), // Aim along Z-axis (north in SolTrace coordinates)
       Specs("ParabolicDish", dish_diameter, dish_diameter, m_ReflectorMaterial->reflectivity, m_ReflectorMaterial->absorptivity, 0.0),
       Specs("ReactorPlate", reactor_width, reactor_width, m_AbsorberMaterial->reflectivity, m_AbsorberMaterial->absorptivity, 0.0)
 
   );
 
-  m_StraceModel = std::make_unique<SolTraceModel>(specs);
+  m_StraceModel = std::make_shared<SolTraceModel>(specs);
 }
+
+/*************************************************************** ParabolicDish() *********************************************************************/
 
 ParabolicDish::ParabolicDish(const std::string &dish_material_name, const std::string &reactor_material_name, const std::string &insulator_material_name,
                              const double &dish_diameter, const double &dish_depth, const double &reactor_width,
                              const GeoLocationData &col_origin)
-    : ParabolicDish(dish_material_name, reactor_material_name, insulator_material_name, dish_diameter, dish_depth, reactor_width, 0.0, col_origin)
+    : ParabolicDish(dish_material_name, reactor_material_name, insulator_material_name, dish_diameter, dish_depth, reactor_width, 0.0, col_origin) {}
+
+ParabolicDish::ParabolicDish(const ParabolicDish &rhs)
+    : Collector(rhs),
+      m_DishDimension(rhs.m_DishDimension ? std::move(rhs.m_DishDimension->Clone()) : nullptr),
+      m_ReactorDimension(rhs.m_ReactorDimension ? std::move(rhs.m_ReactorDimension->Clone()) : nullptr)
 {
+}
+
+ParabolicDish::ParabolicDish(ParabolicDish &&other) noexcept : Collector(std::move(other)),
+                                                               m_DishDimension(std::move(other.m_DishDimension)),
+                                                               m_ReactorDimension(std::move(other.m_ReactorDimension)) {}
+
+void swap(ParabolicDish &lhs, ParabolicDish &rhs) noexcept
+{
+  using std::swap;
+  swap(static_cast<Collector &>(lhs), static_cast<Collector &>(rhs));
+  swap(lhs.m_DishDimension, rhs.m_DishDimension);
+  swap(lhs.m_ReactorDimension, rhs.m_ReactorDimension);
+}
+
+ParabolicDish &ParabolicDish::operator=(ParabolicDish rhs) noexcept
+{
+  swap(*this, rhs);
+  return *this;
 }
 
 bool ParabolicDish::IsInitialized() const
@@ -284,22 +325,51 @@ FlatPlate::FlatPlate(const std::string &surface_material_name, const std::string
                      const double &absorber_length, const GeoLocationData &col_origin)
     : Collector(surface_material_name, absorber_material_name, insulator_material_name, col_origin)
 {
+  if (surface_width <= 0.0 || surface_length <= 0.0 || absorber_width <= 0.0 || absorber_length <= 0.0)
+  {
+    throw std::invalid_argument("Need dimensions to be positive number");
+  }
+
   m_SurfaceDimension = std::make_unique<FlatSurface>(surface_width, surface_length);
   m_AbsorberDimension = std::make_unique<FlatSurface>(absorber_width, absorber_length);
 
   // Initialize SolTrace Model
   CollectorSpecs specs = CollectorSpecs(
-      0.0, m_Origin, Point3f(), // Let soltrace determine the aim direction based on the sun position and collector orientation
+      0.0, m_Origin, Point3f(0, 0, 1), // Aim along Z-axis for flat plate
       Specs("GlassSurface", surface_width, surface_length, m_ReflectorMaterial->reflectivity, m_ReflectorMaterial->absorptivity, 0.0),
       Specs("AbsorberPlate", absorber_width, absorber_length, m_AbsorberMaterial->reflectivity, m_AbsorberMaterial->absorptivity, 0.0));
 
-  m_StraceModel = std::make_unique<SolTraceModel>(specs);
+  m_StraceModel = std::make_shared<SolTraceModel>(specs);
 }
 
 FlatPlate::FlatPlate(const std::string &surface_material_name, const std::string &absorber_material_name, const std::string &insulator_material_name,
                      const double &surface_width, const double &surface_length, const GeoLocationData &col_origin)
     : FlatPlate(surface_material_name, absorber_material_name, insulator_material_name, surface_width, surface_length,
                 surface_width, surface_length, col_origin) {}
+
+FlatPlate::FlatPlate(const FlatPlate &rhs)
+    : Collector(rhs),
+      m_SurfaceDimension(m_SurfaceDimension ? std::move(rhs.m_SurfaceDimension->Clone()) : nullptr),
+      m_AbsorberDimension(m_AbsorberDimension ? std::move(rhs.m_AbsorberDimension->Clone()) : nullptr) {}
+
+FlatPlate::FlatPlate(FlatPlate &&other) noexcept
+    : Collector(std::move(other)),
+      m_SurfaceDimension(std::move(other.m_SurfaceDimension)),
+      m_AbsorberDimension(std::move(other.m_AbsorberDimension)) {}
+
+void swap(FlatPlate &lhs, FlatPlate &rhs) noexcept
+{
+  using std::swap;
+  swap(static_cast<Collector &>(lhs), static_cast<Collector &>(rhs));
+  swap(lhs.m_SurfaceDimension, rhs.m_SurfaceDimension);
+  swap(lhs.m_AbsorberDimension, rhs.m_AbsorberDimension);
+}
+
+FlatPlate &FlatPlate::operator=(FlatPlate rhs) noexcept
+{
+  swap(*this, rhs);
+  return *this;
+}
 
 bool FlatPlate::IsInitialized() const
 {
@@ -340,9 +410,13 @@ static Point3f rotateAxisAngle(const Point3f &v, const Point3f &axis, double the
 
 static UpdatedAim singleAxisEW_VertexFixed(const Point3f &sun, const Point3f &v0, const Point3f &a0)
 {
-  const Point3f U(0, 1, 0); // East-West axis
+  // East-West axis in SolTrace coordinates is the X axis.
+  const Point3f U(1, 0, 0);
   Point3f S = sun.Normalized();
   Point3f A = a0.Normalized();
+
+  double anglebtw = std::acos(S.Dot(A));
+  std::cout << "angle between = " << anglebtw << std::endl;
 
   Point3f A_perp = A - U * A.Dot(U);
   Point3f S_perp = S - U * S.Dot(U);
@@ -356,62 +430,115 @@ static UpdatedAim singleAxisEW_VertexFixed(const Point3f &sun, const Point3f &v0
   double theta = std::atan2(sinPhi, cosPhi);
 
   Point3f newAim = rotateAxisAngle(A, U, theta);
+
+  newAim = newAim * -1.0; // invert direction
+
   return {newAim, 0.0};
 }
 
 static UpdatedAim dualAxis_VertexFixed(const Point3f &sun, const Point3f &v0, const Point3f &a0)
 {
+  (void)v0;
   Point3f S = sun.Normalized();
   Point3f A = a0.Normalized();
   double cosTheta = A.Dot(S);
   double theta = std::acos(std::clamp(cosTheta, -1.0, 1.0));
+
+  std::cout << "angle between = " << theta << std::endl;
 
   if (theta < 1e-12)
   {
     return {A, 0.0};
   }
 
-  Point3f axis = (A.Cross(S)).Normalized(); // normalize(cross(A, S));
+  Point3f axis = (A.Cross(S)).Normalized(); // Rotation axis is perpendicular to both A and S
   Point3f newAim = rotateAxisAngle(A, axis, theta);
+
+  newAim = newAim * -1.0; // invert direction
+
   // Vertex remains v0
   return {newAim, 0.0};
 }
 
 static UpdatedAim triAxis_VertexFixed(const Point3f &sun, const Point3f &v0, const Point3f &a0,
-                                      double focalLength, double dni, double dniRef, double gain)
+                                      double focalLength, double dni, double dniRef)
 {
   // 1. Dual-axis orientation
   auto newAiminfo = dualAxis_VertexFixed(sun, v0, a0);
 
   // 2. Compute receiver offset (e.g., based on DNI)
-  double receiverOffset = gain * (dni - dniRef);
+  double receiverOffset = 0.0;
+  auto cmp = dni / dniRef;
+  if (cmp > 0.8)
+  {
+    receiverOffset = 0.05 * focalLength; // Move receiver slightly forward for high DNI
+    std::cout << "It is more direct normal irradiance\n";
+  }
+  else if (cmp < 0.6)
+  {
+    receiverOffset = -0.05 * focalLength; // Move receiver slightly backward for low DNI
+    std::cout << "It is more difused irradiance\n";
+  }
+
+  // Alternatively, could use a more continuous function:
+  // receiverOffset = 0.05 * focalLength * (dni / dniRef - 1.0); // Linear adjustment
+  // gain *(dni - dniRef);
 
   // Effective receiver position = v0 + (focalLength + receiverOffset) * newAim
   return {newAiminfo.aim, receiverOffset};
 }
 
-CollectorWithTracking::CollectorWithTracking(const Collector &collector_, const TrackingArchitecture &track_mode)
-    : Collector(Collector::NoOpTag{}), m_CollectorType(&collector_), m_Trackmode(track_mode)
+CollectorWithTracking::CollectorWithTracking(std::unique_ptr<Collector> collector_, const TrackingArchitecture &track_mode)
+    : Collector(), m_CollectorType(std::move(collector_)), m_Trackmode(track_mode)
 {
-  /* Note: We use the protected NoOpTag constructor to avoid loading empty materials.
+  /* Note: We use the protected empty constructor to avoid loading empty materials.
      CollectorWithTracking is a wrapper around an existing Collector.
      The base Collector members (materials, StraceModel) belong to m_CollectorType,
      not to this instance. This allows CollectorWithTracking to delegate all
      collector-specific functionality while adding tracking capabilities. */
 }
 
+CollectorWithTracking::CollectorWithTracking(const CollectorWithTracking &rhs)
+    : m_CollectorType(std::move(rhs.Clone())), m_Trackmode(rhs.m_Trackmode) {}
+
+CollectorWithTracking::CollectorWithTracking(CollectorWithTracking &&other) noexcept
+    : m_CollectorType(std::move(other.Clone())),
+      m_Trackmode(std::move(other.m_Trackmode)) {}
+
+void swap(CollectorWithTracking &lhs, CollectorWithTracking &rhs) noexcept
+{
+  using std::swap;
+  swap(static_cast<Collector &>(lhs), static_cast<Collector &>(rhs));
+  swap(lhs.m_CollectorType, rhs.m_CollectorType);
+  swap(lhs.m_Trackmode, rhs.m_Trackmode);
+}
+
+CollectorWithTracking &CollectorWithTracking::operator=(CollectorWithTracking rhs) noexcept
+{
+  swap(*this, rhs);
+  return *this;
+}
+
 UpdatedAim CollectorWithTracking::UpdateCollectorAimForTrackingMode(
     const Point3f &sun,
-    double dni, double dniRef, double gain) const
+    double dni, double dniRef) const
 {
+  auto model = m_CollectorType->GetSolTraceModel();
+  if (!model)
+  {
+    std::cerr << "Wrapped collector's SolTraceModel is not initialized!\n";
+    return {};
+  }
+
   UpdatedAim aimInfo;
   auto vertex = m_CollectorType->GetOrigin();
-  auto initialAim = m_CollectorType->GetSolTraceModel()->GetADishAimAlongZAxis();
+  auto initialAim = model->GetADishAimAlongZAxis();
 
   switch (m_Trackmode)
   {
   case TrackingArchitecture::FIXED_TILT:
     aimInfo.aim = initialAim;
+    aimInfo.receiverOffset = 0.0;
     break;
   case TrackingArchitecture::SINGLE_AXIS_EW:
     aimInfo = singleAxisEW_VertexFixed(sun, vertex, initialAim);
@@ -421,15 +548,9 @@ UpdatedAim CollectorWithTracking::UpdateCollectorAimForTrackingMode(
     break;
   case TrackingArchitecture::TRI_AXIS:
   {
-    auto *model = m_CollectorType->GetSolTraceModel();
-    if (!model)
-    {
-      std::cerr << "Wrapped collector's SolTraceModel is not initialized!\n";
-      return {initialAim, 0.0};
-    }
     auto focalLength = model->GetFocalLength();
     aimInfo = triAxis_VertexFixed(sun, vertex, initialAim,
-                                  focalLength, dni, dniRef, gain);
+                                  focalLength, dni, dniRef);
   }
   break;
   }
@@ -463,7 +584,7 @@ RayTraceResult CollectorWithTracking::RunAnalysis(
     const GeoWeatherData &weather,
     const GeoSolarRadiationData &solar_rad) const
 {
-  if (!IsInitialized())
+  if (!this->IsInitialized())
   {
     std::cerr << "CollectorWithTracking is not properly initialized!\n";
     return {};
@@ -480,8 +601,9 @@ RayTraceResult CollectorWithTracking::RunAnalysis(
 
   /* Convert sun position from azimuth/elevation to 3D Cartesian coordinates (ENU system)
      E = East, N = North, U = Up/Zenith */
-  auto sun_pos = sunPosTo3DCartesian(spa_data.azimuth, spa_data.elevation);
-  std::cout << "Sun position (ENU) [x,y,z]: [" << sun_pos.X << "," << sun_pos.Y << "," << sun_pos.Z << "]\n";
+  auto sun_pos = sunToAimVector(spa_data.azimuth, spa_data.elevation);
+
+  std::cout << "Sun position (SolTrace) [x,y,z]: [" << sun_pos.X << "," << sun_pos.Y << "," << sun_pos.Z << "]\n";
 
   /* Apply tracking mode-specific aim corrections and update collector orientation
      This will internally call SolTraceModel::UpdateCollectorAimIfNeeded() which:
@@ -490,15 +612,15 @@ RayTraceResult CollectorWithTracking::RunAnalysis(
      - Updates SolTrace aperture and surface parameters */
 
   auto newAim = UpdateCollectorAimForTrackingMode(sun_pos,
-                                                  solar_rad.DNI, SOLAR_CONSTANT, 1.0 /*gain*/
-  );
+                                                  solar_rad.DNI, solar_rad.GHI); // Pass DNI and GHI for potential use in tri-axis tracking adjustments
+
   /* Estimate ray number based on the amount of direct radiation received */
   int ray_num = solar_rad.DNI * RAY_NUM_MAX / SOLAR_CONSTANT;
 
   if (ray_num <= 0)
     return {};
 
-  auto *model = m_CollectorType->GetSolTraceModel();
+  auto model = m_CollectorType->GetSolTraceModel();
   if (!model)
   {
     std::cerr << "Wrapped collector's SolTraceModel is not initialized!\n";
