@@ -5,8 +5,24 @@
 #include <string>
 #include <iostream>
 #include <map>
+#include <filesystem>
+#include <fstream>
+#include <algorithm>
 
 namespace plt = matplotlibcpp;
+namespace fs = std::filesystem;
+
+fs::path cur = fs::current_path();
+
+static void SaveToFolder(const std::string &dir_name)
+{
+  fs::path save_dir = cur / "Plots" / dir_name;
+  if (!fs::exists(save_dir))
+    fs::create_directories(save_dir);
+
+  // switch to save directory
+  fs::current_path(save_dir);
+}
 
 static const std::vector<std::pair<std::string, int>>
     colors = {             // "color", Temp (K)
@@ -29,6 +45,11 @@ class RayPathVisualizer
 public:
   static void Plot3DRayPaths(const std::map<std::string, RayTraceResult> &results, const std::string &filename)
   {
+    if (results.empty())
+    {
+      std::cerr << "No ray trace results to plot.\n";
+      return;
+    }
     // Create separate plots for each stage
     PlotDishSurfaceRays(results, filename);
     PlotReceiverFluxDistribution(results, filename);
@@ -87,6 +108,8 @@ private:
     }
     plt::tight_layout();
 
+    SaveToFolder("surface-reflection-plots");
+
     plt::save(fName);
     plt::close();
   }
@@ -140,7 +163,7 @@ private:
             auto &x_container = dp[idx].first;
             auto &y_container = dp[idx].second;
             x_container.push_back(X);
-            y_container.push_back(Y);
+            y_container.push_back(Z);
           }
         }
       }
@@ -168,6 +191,8 @@ private:
       plt::grid(true);
       ++plot_num;
     }
+
+    SaveToFolder("receiver-flux-distribution");
 
     plt::save(fName);
     plt::close();
@@ -356,6 +381,9 @@ private:
         plt::ylabel("z-axis (m)");
         ++plot_num;
       }
+
+      SaveToFolder("dish-receiver-ray-path-plots");
+
       plt::save(fName);
       plt::close();
     }
@@ -381,6 +409,9 @@ private:
         plt::ylabel("z-axis (m)");
         ++plot_num;
       }
+
+      SaveToFolder("sun-dish-ray-path-plots");
+
       plt::save(fName);
       plt::close();
     }
@@ -449,23 +480,29 @@ private:
 class ValueVisualizer
 {
 public:
-  static void PlotValueOnBarGraph(const std::map<std::string, std::vector<double>> &values,
-                                  const std::vector<std::string> &labels,
-                                  const std::string &filename)
+  static void PlotValueOnBarGraph(const std::map<std::string, std::vector<double>> &plot_values,
+                                  const std::vector<std::string> &time_interval,
+                                  const std::string &filename,
+                                  const std::string &folder_name,
+                                  const std::string &y_label,
+                                  const std::string &x_label,
+                                  const std::string &title)
   {
-    const size_t label_interval = labels.size();
-    const size_t value_size = values.size();
+    const size_t label_interval = time_interval.size();
+    const size_t value_size = plot_values.size();
+    double max_bar = 0.0;
+
     if (!value_size || !label_interval)
     {
-      std::cerr << "values or label size can not be zero\n";
+      std::cerr << "values or label size can not be zero, value_size: " << value_size << ", label_interval: " << label_interval << std::endl;
       return;
     }
 
-    for (const auto &[dish, dish_values] : values)
+    for (const auto &[dish, dish_values] : plot_values)
     {
       if (dish_values.size() != label_interval)
       {
-        std::cerr << "Mismatch between labels size and values size for dish: " << dish << std::endl;
+        std::cerr << "Mismatch between labels size: " << label_interval << " and values size: " << dish_values.size() << " for dish: " << dish << std::endl;
         return;
       }
     }
@@ -480,11 +517,14 @@ public:
     int color_index = 0;
     int dish_index = 0;
 
-    plt::figure();
+    const long w = (plot_values.size() * 320) + 320, h = 480;
 
-    for (const auto &[dish, dish_values] : values)
+    // plt::figure();
+    plt::figure_size(w, h);
+
+    for (const auto &[dish, dish_values] : plot_values)
     {
-
+      max_bar = std::max(max_bar, *std::max_element(dish_values.begin(), dish_values.end()));
       std::vector<double> dish_x_positions;
 
       // Calculate x positions for this dish with proper offset
@@ -499,16 +539,255 @@ public:
       ++color_index;
     }
 
-    plt::title("Optical Efficiency Plot");
-    plt::xlabel("Time of Day");
-    plt::ylabel("Efficiency (%)");
+    plt::title(title);
+    plt::xlabel(x_label);
+    plt::ylabel(y_label);
 
     // Set x-axis ticks and labels
+    plt::xticks(x_positions, time_interval);
+    plt::legend();
+    plt::ylim(0.0, max_bar + (max_bar / 4.0)); // Add some padding to the y-axis
+    plt::grid(true);
+    std::string pngName = filename + "_" + title + "_" + ".png";
+    SaveToFolder(folder_name);
+
+    plt::save(pngName);
+    plt::close();
+  }
+
+  static void PlotValueOnGraph(
+      const std::map<std::string, std::vector<double>> &plot_values,
+      const std::vector<std::string> &time_interval,
+      const std::string &filename,
+      const std::string &folder_name,
+      const std::string &y_label,
+      const std::string &x_label,
+      const std::string &title)
+  {
+    if (plot_values.empty() || time_interval.empty())
+      return;
+
+    const long w = (plot_values.size() * 320) + 320, h = 480;
+
+    // plt::figure();
+    plt::figure_size(w, h);
+
+    std::vector<double> x_positions;
+    std::vector<std::string> labels;
+
+    for (size_t i = 0; i < time_interval.size(); ++i)
+    {
+      x_positions.push_back(i);
+      labels.push_back(time_interval[i] + ":00");
+    }
+
+    for (const auto &[name, values] : plot_values)
+    {
+      if (values.size() == time_interval.size())
+      {
+        plt::plot(x_positions, values, {{"label", name}, {"marker", "o"}});
+      }
+    }
+
+    plt::title(title);
+    plt::xlabel(x_label);
+    plt::ylabel(y_label);
     plt::xticks(x_positions, labels);
     plt::legend();
-    plt::ylim(0, 100);
     plt::grid(true);
-    std::string fName = filename + "_efficiency.png";
-    plt::save(fName);
+    std::string pngName = filename + "_" + title + "_" + ".png";
+
+    SaveToFolder(folder_name);
+
+    plt::save(pngName);
+    plt::close();
   }
 };
+
+// /**
+//  * @brief Thermal metrics visualization
+//  */
+// class ThermalVisualizer
+// {
+// public:
+//   /**
+//    * @brief Plot thermal efficiency over time
+//    */
+//   static void PlotThermalEfficiency(
+//       const std::map<std::string, std::vector<double>> &thermal_efficiency,
+//       const std::vector<std::string> &time_interval,
+//       const std::string &filename)
+//   {
+//     if (thermal_efficiency.empty() || time_interval.empty())
+//       return;
+
+//     plt::figure();
+//     std::vector<double> x_positions;
+//     std::vector<std::string> labels;
+
+//     for (size_t i = 0; i < time_interval.size(); ++i)
+//     {
+//       x_positions.push_back(i);
+//       labels.push_back(time_interval[i] + ":00");
+//     }
+
+//     for (const auto &[name, values] : thermal_efficiency)
+//     {
+//       if (values.size() == time_interval.size())
+//       {
+//         plt::plot(x_positions, values, {{"label", name}, {"marker", "o"}});
+//       }
+//     }
+
+//     plt::title("Thermal Efficiency Over Time");
+//     plt::xlabel("Time of Day");
+//     plt::ylabel("Thermal Efficiency (%)");
+//     plt::xticks(x_positions, labels);
+//     plt::legend();
+//     plt::grid(true);
+//     std::string pngName = filename + "_thermal_efficiency.png";
+
+//     SaveToFolder("thermal-efficiency-plots");
+
+//     plt::save(pngName);
+//   }
+
+//   /**
+//    * @brief Plot operating temperature over time
+//    */
+//   static void PlotOperatingTemperature(
+//       const std::map<std::string, std::vector<double>> &operating_temperature,
+//       const std::vector<std::string> &time_interval,
+//       const std::string &filename)
+//   {
+//     if (operating_temperature.empty() || time_interval.empty())
+//       return;
+
+//     plt::figure();
+//     std::vector<double> x_positions;
+//     std::vector<std::string> labels;
+
+//     for (size_t i = 0; i < time_interval.size(); ++i)
+//     {
+//       x_positions.push_back(i);
+//       labels.push_back(time_interval[i] + ":00");
+//     }
+
+//     for (const auto &[name, values] : operating_temperature)
+//     {
+//       if (values.size() == time_interval.size())
+//       {
+//         plt::plot(x_positions, values, {{"label", name}, {"marker", "s"}});
+//       }
+//     }
+
+//     plt::title("Operating Temperature Over Time");
+//     plt::xlabel("Time of Day");
+//     plt::ylabel("Temperature (°C)");
+//     plt::xticks(x_positions, labels);
+//     plt::legend();
+//     plt::grid(true);
+//     std::string pngName = filename + "_operating_temperature.png";
+
+//     SaveToFolder("ThermalTemperaturePlots");
+
+//     plt::save(pngName);
+//   }
+
+//   /**
+//    * @brief Plot useful energy output over time
+//    */
+//   static void PlotUsefulEnergyOutput(
+//       const std::map<std::string, std::vector<double>> &useful_energy,
+//       const std::vector<std::string> &time_interval,
+//       const std::string &filename)
+//   {
+//     if (useful_energy.empty() || time_interval.empty())
+//       return;
+
+//     plt::figure();
+//     std::vector<double> x_positions;
+//     std::vector<std::string> labels;
+
+//     for (size_t i = 0; i < time_interval.size(); ++i)
+//     {
+//       x_positions.push_back(i);
+//       labels.push_back(time_interval[i] + ":00");
+//     }
+
+//     for (const auto &[name, values] : useful_energy)
+//     {
+//       if (values.size() == time_interval.size())
+//       {
+//         plt::plot(x_positions, values, {{"label", name}, {"marker", "^"}});
+//       }
+//     }
+
+//     plt::title("Useful Energy Output Over Time");
+//     plt::xlabel("Time of Day");
+//     plt::ylabel("Energy Output (kW)");
+//     plt::xticks(x_positions, labels);
+//     plt::legend();
+//     plt::grid(true);
+//     std::string pngName = filename + "_useful_energy.png";
+
+//     SaveToFolder("useful-energy-plots");
+
+//     plt::save(pngName);
+//   }
+
+//   /**
+//    * @brief Plot thermal loss breakdown (stacked bar chart)
+//    */
+//   static void PlotThermalLossBreakdown(
+//       const std::map<std::string, std::vector<std::array<double, 3>>> &loss_breakdown,
+//       const std::vector<std::string> &time_interval,
+//       const std::string &filename)
+//   {
+//     if (loss_breakdown.empty() || time_interval.empty())
+//       return;
+
+//     plt::figure();
+//     std::vector<double> x_positions;
+//     std::vector<std::string> labels;
+
+//     for (size_t i = 0; i < time_interval.size(); ++i)
+//     {
+//       x_positions.push_back(i);
+//       labels.push_back(time_interval[i] + ":00");
+//     }
+
+//     // Plot stacked bars for each collector
+//     size_t collector_idx = 0;
+//     const int color_size = colors.size();
+//     for (const auto &[name, losses_data] : loss_breakdown)
+//     {
+//       if (losses_data.size() != time_interval.size())
+//         continue;
+
+//       std::vector<double> radiation, convection, conduction;
+//       for (const auto &loss : losses_data)
+//       {
+//         radiation.push_back(loss[0]);
+//         convection.push_back(loss[1]);
+//         conduction.push_back(loss[2]);
+//       }
+
+//       // Use bar plot with stacking
+//       plt::bar(x_positions, radiation, colors[collector_idx % color_size].first, "-", 0.6, {{"label", name + ": Radiation"}});
+//       collector_idx++;
+//     }
+
+//     plt::title("Thermal Loss Breakdown");
+//     plt::xlabel("Time of Day");
+//     plt::ylabel("Loss (kW)");
+//     plt::xticks(x_positions, labels);
+//     plt::legend();
+//     plt::grid(true);
+//     std::string pngName = filename + "_loss_breakdown.png";
+
+//     SaveToFolder("thermal-loss-breakdown-plots");
+
+//     plt::save(pngName);
+//   }
+// };
