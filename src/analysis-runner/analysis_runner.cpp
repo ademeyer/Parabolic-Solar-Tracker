@@ -2,6 +2,6 @@
 
 int main()
 {
-  RunAnalysis::RunDailyAnalysis();
+  AnalysisRunner::RunAnalysis();
   return 0;
 }
