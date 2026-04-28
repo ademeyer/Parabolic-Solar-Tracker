@@ -16,16 +16,70 @@ public:
 
   bool parseConfig()
   {
-    if (configFile.empty() || !std::filesystem::exists(configFile))
+    if (configFile.empty())
+    {
+      std::cerr << "Error: Config file name is empty" << std::endl;
+      return false;
+    }
+
+    auto resolveCandidate = [&](const std::filesystem::path &path) -> std::filesystem::path
+    {
+      if (std::filesystem::exists(path))
+        return path;
+
+      auto candidate = std::filesystem::current_path() / path;
+      if (std::filesystem::exists(candidate))
+        return candidate;
+
+      if (std::filesystem::exists("/proc/self/exe"))
+      {
+        auto exePath = std::filesystem::read_symlink("/proc/self/exe");
+        candidate = exePath.parent_path() / path;
+        if (std::filesystem::exists(candidate))
+          return candidate;
+      }
+
+      return {};
+    };
+
+    auto searchConfigDirs = [&](const std::filesystem::path &base) -> std::filesystem::path
+    {
+      auto path = base;
+      while (true)
+      {
+        const auto candidate = path / "Configs" / configFile;
+        if (std::filesystem::exists(candidate))
+          return candidate;
+
+        if (!path.has_parent_path())
+          break;
+        path = path.parent_path();
+      }
+      return {};
+    };
+
+    std::filesystem::path configPath = resolveCandidate(configFile);
+    if (configPath.empty())
+    {
+      configPath = searchConfigDirs(std::filesystem::current_path());
+    }
+
+    if (configPath.empty() && std::filesystem::exists("/proc/self/exe"))
+    {
+      auto exePath = std::filesystem::read_symlink("/proc/self/exe");
+      configPath = searchConfigDirs(exePath.parent_path());
+    }
+
+    if (configPath.empty())
     {
       std::cerr << "Error: Cannot find file " << configFile << std::endl;
       return false;
     }
 
-    std::ifstream file(configFile);
+    std::ifstream file(configPath);
     if (!file.is_open())
     {
-      std::cerr << "Error: Cannot open config file " << configFile << std::endl;
+      std::cerr << "Error: Cannot open config file " << configPath.string() << std::endl;
       return false;
     }
 
