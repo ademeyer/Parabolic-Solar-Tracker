@@ -199,6 +199,32 @@ struct Date
     return days[month - 1];
   }
 
+  // Subtraction: Date - Date → difference in days
+  int operator-(const Date &rhs) const
+  {
+    // Helper: days from 0001-01-01 to the given date
+    auto daysSinceEpoch = [](const Date &d) -> long long
+    {
+      long long total = 0;
+      // Sum days of full years before d.year
+      for (int y = 1; y < d.year; ++y)
+      {
+        total += Date(y, 1, 1).isLeapYear() ? 366 : 365;
+      }
+      // Sum days of full months before d.month in year d.year
+      for (int m = 1; m < d.month; ++m)
+      {
+        total += Date(d.year, m, 1).daysInMonth();
+      }
+      // Add days of the current month (days 1..d.day)
+      total += d.day - 1;
+      return total;
+    };
+
+    long long diff = daysSinceEpoch(*this) - daysSinceEpoch(rhs);
+    return static_cast<int>(diff);
+  }
+
   // Pre‑increment: ++date
   Date &operator++()
   {
