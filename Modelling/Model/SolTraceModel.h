@@ -80,13 +80,15 @@ class SolTraceModel
 public:
   SolTraceModel(const CollectorSpecs &specs);
 
+  SolTraceModel(const SolTraceModel &rhs); // Copy constructor
+
   ~SolTraceModel();
 
   void Cleanup();
 
   Point3f GetADishAimAlongZAxis() const;
 
-  void UpdateDishOrigin(const Point3f &origin);
+  void UpdateDishOriginAndAim(const Point3f &origin);
 
   double GetFocalLength() const;
 
@@ -100,8 +102,8 @@ private:
   bool m_Initialized;
   int m_ReceiverStageID = -1;
   int m_DishStageID = -1;
-  int m_DishElementID = -1;
-  int m_ReceiverElementID = -1;
+  int m_ElementID = -1;
+  double m_FocalOffset;
   CollectorSpecs m_CollectorSpecs;
 
   void setupAll();

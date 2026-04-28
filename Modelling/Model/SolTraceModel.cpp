@@ -3,92 +3,24 @@
 #include <cmath>
 #include "SolTraceModel.h"
 
-// Get rotation that aligns 'from' vector to 'to' vector
-// Returns rotation axis and angle
-static void getAlignmentRotation(const Point3f &from, const Point3f &to,
-                                 Point3f &axis, double &angle)
-{
-  Point3f fromNorm = from.Normalized();
-  Point3f toNorm = to.Normalized();
-
-  // Check if vectors are already aligned
-  double dot = fromNorm.Dot(toNorm);
-
-  if (dot > 0.99999)
-  {
-    // Already aligned - no rotation
-    axis = Point3f(1, 0, 0);
-    angle = 0;
-    return;
-  }
-
-  if (dot < -0.99999)
-  {
-    // Opposite directions - rotate 180° around any perpendicular axis
-    // Find a perpendicular vector
-    if (std::abs(fromNorm.X) < 0.707)
-    {
-      axis = Point3f(1, 0, 0).Cross(fromNorm).Normalized();
-    }
-    else
-    {
-      axis = Point3f(0, 1, 0).Cross(fromNorm).Normalized();
-    }
-    angle = M_PI;
-    return;
-  }
-
-  // Normal case: axis = from × to, angle = acos(dot)
-  axis = fromNorm.Cross(toNorm);
-  angle = std::acos(dot);
-}
-
-// Rodrigues rotation formula: rotate vector v around axis u by angle theta
-static Point3f rotateVector(const Point3f &v, const Point3f &u, double theta)
-{
-  double cosTheta = std::cos(theta);
-  double sinTheta = std::sin(theta);
-
-  Point3f uNorm = u.Normalized();
-
-  // v_rot = v*cosθ + (u×v)*sinθ + u(u·v)(1-cosθ)
-  Point3f crossProd = uNorm.Cross(v);
-  double dotProd = uNorm.Dot(v);
-
-  return Point3f(
-      v.X * cosTheta + crossProd.X * sinTheta + uNorm.X * dotProd * (1 - cosTheta),
-      v.Y * cosTheta + crossProd.Y * sinTheta + uNorm.Y * dotProd * (1 - cosTheta),
-      v.Z * cosTheta + crossProd.Z * sinTheta + uNorm.Z * dotProd * (1 - cosTheta));
-}
-
-// Get the current aiming direction in global coordinates
-static Point3f getGlobalAimDirection(const Point3f &cur_aim)
-{
-  Point3f rotationAxis;
-  double rotationAngle;
-  getAlignmentRotation(cur_aim, Point3f(0, 0, 1),
-                       rotationAxis, rotationAngle);
-  // Apply the rotation to local forward to get global pointing
-  return rotateVector(cur_aim, rotationAxis, rotationAngle);
-}
-
-// Get a point along the aim direction (for visualization)
-static Point3f getAimPoint(const Point3f &origin, const Point3f &cur_aim, double distance = 1.0)
-{
-  Point3f aimDir = getGlobalAimDirection(cur_aim);
-  return Point3f(
-      origin.X + aimDir.X * distance,
-      origin.Y + aimDir.Y * distance,
-      origin.Z + aimDir.Z * distance);
-}
-
 SolTraceModel::SolTraceModel(const CollectorSpecs &specs)
-    : m_Initialized(false), m_CollectorSpecs(specs)
+    : m_Initialized(false), m_CollectorSpecs(specs), m_FocalOffset(0.0)
 {
   m_stContext = st_create_context();
   if (!m_stContext)
   {
     std::cerr << "Failed to create SolTrace context\n";
+    return;
+  }
+}
+
+SolTraceModel::SolTraceModel(const SolTraceModel &rhs)
+    : m_Initialized(false), m_CollectorSpecs(rhs.m_CollectorSpecs), m_stContext(nullptr)
+{
+  m_stContext = st_create_context();
+  if (!m_stContext)
+  {
+    std::cerr << "Failed to create SolTrace context in copy constructor\n";
     return;
   }
 }
@@ -100,8 +32,8 @@ SolTraceModel::~SolTraceModel()
 
 Point3f SolTraceModel::GetADishAimAlongZAxis() const
 {
-  // By default, aim along the positive Z-axis
-  return getAimPoint(m_CollectorSpecs.origin, m_CollectorSpecs.aim);
+  // Return the current aim direction (should be a unit vector)
+  return m_CollectorSpecs.aim;
 }
 
 void SolTraceModel::setupAll()
@@ -109,20 +41,17 @@ void SolTraceModel::setupAll()
   if (!m_stContext)
     throw std::runtime_error("Error: SolTrace context is not initialized");
 
-  /* If origin is still not set, set a default */
-  if (!m_CollectorSpecs.origin)
-  {
-    m_CollectorSpecs.origin = Point3f(0.0, 0.0, 0.0);
-  }
-
-  /* Always aim along Z-axis */
-  m_CollectorSpecs.aim = getAimPoint(m_CollectorSpecs.origin, m_CollectorSpecs.aim);
-
   if (!(m_CollectorSpecs.origin && m_CollectorSpecs.aim))
-    throw std::runtime_error("origin or aim coordinate not set");
+    throw std::runtime_error("origin or aim coordinate not set, origin:[" +
+                             std::to_string(m_CollectorSpecs.origin.X) + "," +
+                             std::to_string(m_CollectorSpecs.origin.Y) + "," +
+                             std::to_string(m_CollectorSpecs.origin.Z) + "], aim: [" +
+                             std::to_string(m_CollectorSpecs.aim.X) + "," +
+                             std::to_string(m_CollectorSpecs.aim.Y) + "," +
+                             std::to_string(m_CollectorSpecs.aim.Z) + "]");
 
   std::cout << "oring coordinate: [" << m_CollectorSpecs.origin.X << "," << m_CollectorSpecs.origin.Y << "," << m_CollectorSpecs.origin.Z << "]\n";
-  std::cout << "aim coordinate: [" << m_CollectorSpecs.aim.X << "," << m_CollectorSpecs.aim.Y << "," << m_CollectorSpecs.aim.Z << "]\n";
+  std::cout << "aim direction: [" << m_CollectorSpecs.aim.X << "," << m_CollectorSpecs.aim.Y << "," << m_CollectorSpecs.aim.Z << "]\n";
 
   setupDish();
 
@@ -149,15 +78,13 @@ static bool isUnitVector(const Point3f &point)
     return false;
 
   const auto &[x, y, z] = point;
-  float normal = std::pow(x, 2.0) + std::pow(y, 2.0) + std::pow(z, 2.0);
-  int _nor = std::pow(normal, 0.5) * 10;
-  normal = _nor / 10.0;
-  return normal == 1.00;
+  double length = std::sqrt(x * x + y * y + z * z);
+  return std::abs(length - 1.0) < 1e-6;
 }
 
 void SolTraceModel::UpdateCollectorAimIfNeeded(const UpdatedAim &new_aim)
 {
-  auto &sun_aim = new_aim.aim;
+  const auto &sun_aim = new_aim.aim;
   if (sun_aim == m_CollectorSpecs.aim)
   {
     std::cout << "Dish aim has not changed\n";
@@ -171,21 +98,22 @@ void SolTraceModel::UpdateCollectorAimIfNeeded(const UpdatedAim &new_aim)
   }
 
   m_CollectorSpecs.aim = sun_aim;
-  m_CollectorSpecs.focal_length += new_aim.receiverOffset; // Adjust focal length based on receiver offset
-  m_Initialized = false;                                   // Mark as not initialized to trigger re-setup with new aim
+  m_FocalOffset = new_aim.receiverOffset; // Adjust focal length based on receiver offset
+  m_Initialized = false;                  // Mark as not initialized to trigger re-setup with new aim
 
   std::cout
-      << "Updated dish aim to: [" << m_CollectorSpecs.aim.X << "," << m_CollectorSpecs.aim.Y << "," << m_CollectorSpecs.aim.Z << "]\n";
+      << "Updated dish aim to: [" << m_CollectorSpecs.aim.X << "," << m_CollectorSpecs.aim.Y << ","
+      << m_CollectorSpecs.aim.Z << "] focal length: " << m_CollectorSpecs.focal_length
+      << " reciever offset:" << m_FocalOffset << "\n";
 }
 
-void SolTraceModel::UpdateDishOrigin(const Point3f &origin)
+void SolTraceModel::UpdateDishOriginAndAim(const Point3f &origin)
 {
-  if (!origin)
+  if (!origin || m_CollectorSpecs.origin == origin)
     return;
 
   m_Initialized = false; // Mark as not initialized to trigger re-setup with new origin
   m_CollectorSpecs.origin = origin;
-  // std::cout << "Dish origin updated to: [" << m_CollectorSpecs.origin.X << "," << m_CollectorSpecs.origin.Y << "," << m_CollectorSpecs.origin.Z << "]\n";
 }
 
 RayTraceResult SolTraceModel::RunAnalysis(const Point3f &sun_pos,
@@ -205,8 +133,8 @@ RayTraceResult SolTraceModel::RunAnalysis(const Point3f &sun_pos,
   setupSun(sun_pos);
 
   /* Set simulation parameters */
-  st_sim_params(m_stContext, ray_num, 10 * RAY_NUM_MAX, 0); // nrays, maxrays, pointfocus
-  st_sim_errors(m_stContext, 1, 1);                         // sunshape on, errors on
+  st_sim_params(m_stContext, ray_num, 1000 * RAY_NUM_MAX, 0); // nrays, maxrays, pointfocus
+  st_sim_errors(m_stContext, 1, 1);                           // sunshape on, errors on
 
   // Run simulation
   int result_code = st_sim_run(m_stContext, 42, nullptr, nullptr); // seed = 42
@@ -349,10 +277,11 @@ void SolTraceModel::setupReceiver()
 {
   // Surface parameters for flat surface: [empty]
   double surface_params[8] = {0};
+  std::cout << "focal lenth: " << m_CollectorSpecs.focal_length << ", focal offset: " << m_FocalOffset << std::endl;
 
   /* Deduce receiver aim&origin coordinate from collector */
-  Point3f receiver_origin = m_CollectorSpecs.origin + (m_CollectorSpecs.aim * m_CollectorSpecs.focal_length); // position receiver at focal length distance along the dish aim direction
-  Point3f receiver_aim = Point3f(-m_CollectorSpecs.aim.X, -m_CollectorSpecs.aim.Y, -m_CollectorSpecs.aim.Z);  // aim towards the dish (normal direction)
+  Point3f receiver_origin = m_CollectorSpecs.origin + (m_CollectorSpecs.aim * (m_CollectorSpecs.focal_length + m_FocalOffset)); // position receiver at focal length distance along the dish aim direction
+  Point3f receiver_aim = Point3f(-m_CollectorSpecs.aim.X, -m_CollectorSpecs.aim.Y, -m_CollectorSpecs.aim.Z);                    // aim towards the dish (normal direction)
   std::cout << "Receiver origin: [" << receiver_origin.X << "," << receiver_origin.Y << "," << receiver_origin.Z << "]\n";
   std::cout << "Receiver aim: [" << receiver_aim.X << "," << receiver_aim.Y << "," << receiver_aim.Z << "]\n";
 
@@ -442,29 +371,22 @@ void SolTraceModel::setupCollector(const std::string &optics_name,
   st_stage_zrot(m_stContext, stage_id, 0.0);
 
   /* Create a element (parabolic or flatplate) */
-  int element_id = st_add_element(m_stContext, stage_id);
+  if (m_ElementID == -1)
+    m_ElementID = st_add_element(m_stContext, stage_id);
 
-  std::cout << "stage id: " << stage_id << ", element_id: " << element_id << std::endl;
-
-  // Store element ID
-  if (stage_id == m_DishStageID)
-  {
-    m_DishElementID = element_id;
-  }
-  else if (stage_id == m_ReceiverStageID)
-  {
-    m_ReceiverElementID = element_id;
-  }
+  std::cout << "stage id: " << stage_id << ", element_id: " << m_ElementID << std::endl;
+  if (m_ElementID < 0)
+    throw std::runtime_error("Failed to add element for collector");
 
   /* Setup Element properties */
-  st_element_enabled(m_stContext, stage_id, element_id, 1);
+  st_element_enabled(m_stContext, stage_id, m_ElementID, 1);
 
-  st_element_xyz(m_stContext, stage_id, element_id, origin_xyz.X, origin_xyz.Y, origin_xyz.Z);
-  st_element_aim(m_stContext, stage_id, element_id, aim_xyz.X, aim_xyz.Y, aim_xyz.Z);
-  st_element_zrot(m_stContext, stage_id, element_id, 0.0);
+  st_element_xyz(m_stContext, stage_id, m_ElementID, origin_xyz.X, origin_xyz.Y, origin_xyz.Z);
+  st_element_aim(m_stContext, stage_id, m_ElementID, aim_xyz.X, aim_xyz.Y, aim_xyz.Z);
+  st_element_zrot(m_stContext, stage_id, m_ElementID, 0.0);
 
   /* Set aperture type */
-  st_element_aperture(m_stContext, stage_id, element_id, aperture_type);
+  st_element_aperture(m_stContext, stage_id, m_ElementID, aperture_type);
 
   /* Setup aperture params */
   double aperture_params[8] = {
@@ -473,14 +395,14 @@ void SolTraceModel::setupCollector(const std::string &optics_name,
       origin_xyz.X, origin_xyz.Y, origin_xyz.Z, // x0, y0, z0
       aim_xyz.X, aim_xyz.Y, aim_xyz.Z           // x1, y1, z1 (normal vector)
   };
-  st_element_aperture_params(m_stContext, stage_id, element_id, aperture_params);
+  st_element_aperture_params(m_stContext, stage_id, m_ElementID, aperture_params);
 
   /* Setup Surface element */
-  st_element_surface(m_stContext, stage_id, element_id, surface_type);
+  st_element_surface(m_stContext, stage_id, m_ElementID, surface_type);
 
-  st_element_surface_params(m_stContext, stage_id, element_id, surface_params);
+  st_element_surface_params(m_stContext, stage_id, m_ElementID, surface_params);
 
   // Assign optics
-  st_element_optic(m_stContext, stage_id, element_id, optics_name.c_str());
-  st_element_interaction(m_stContext, stage_id, element_id, element_interaction);
+  st_element_optic(m_stContext, stage_id, m_ElementID, optics_name.c_str());
+  st_element_interaction(m_stContext, stage_id, m_ElementID, element_interaction);
 }
